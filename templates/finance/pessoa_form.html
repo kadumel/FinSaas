@@ -1,0 +1,357 @@
+{% extends "base.html" %}
+
+{% block title %}{% if pessoa %}Editar cliente/fornecedor{% else %}Novo cliente/fornecedor{% endif %} · Cadastros{% endblock %}
+
+{% block content %}
+<div class="max-w-xl mx-auto">
+    <h1 class="text-2xl font-semibold text-slate-800 mb-2">
+        {% if pessoa %}Editar cliente/fornecedor{% else %}Novo cliente/fornecedor{% endif %}
+    </h1>
+    <p class="text-sm text-slate-500 mb-4">Cadastro de cliente e/ou fornecedor.</p>
+
+    <form method="post" class="bg-white rounded-xl shadow-sm border border-slate-200 p-6 space-y-4">
+        {% csrf_token %}
+
+        <div class="space-y-1">
+            <label class="block text-sm font-medium text-slate-700">Nome / Razão social</label>
+            <input type="text" name="nome_razao" required
+                   value="{{ form.nome_razao|default_if_none:'' }}"
+                   class="w-full rounded-md border-slate-300 shadow-sm focus:border-sky-500 focus:ring-sky-500">
+        </div>
+
+        <div class="space-y-1">
+            <label class="block text-sm font-medium text-slate-700">CPF / CNPJ</label>
+            <input type="text" name="cpf_cnpj" id="id_cpf_cnpj" maxlength="18"
+                   value="{{ form.cpf_cnpj|default_if_none:'' }}"
+                   placeholder="000.000.000-00 ou 00.000.000/0000-00"
+                   inputmode="numeric"
+                   autocomplete="off"
+                   class="w-full rounded-md border-slate-300 shadow-sm focus:border-sky-500 focus:ring-sky-500">
+            <p class="text-xs text-slate-500">Digite apenas números. CPF (11) ou CNPJ (14).</p>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div class="space-y-1">
+                <label class="block text-sm font-medium text-slate-700">Endereço</label>
+                <input type="text" name="endereco"
+                       value="{{ form.endereco|default_if_none:'' }}"
+                       class="w-full rounded-md border-slate-300 shadow-sm focus:border-sky-500 focus:ring-sky-500">
+            </div>
+            <div class="space-y-1">
+                <label class="block text-sm font-medium text-slate-700">Número</label>
+                <input type="text" name="numero"
+                       value="{{ form.numero|default_if_none:'' }}"
+                       class="w-full rounded-md border-slate-300 shadow-sm focus:border-sky-500 focus:ring-sky-500">
+            </div>
+        </div>
+
+        <div class="space-y-1">
+            <label class="block text-sm font-medium text-slate-700">Complemento</label>
+            <input type="text" name="complemento"
+                   value="{{ form.complemento|default_if_none:'' }}"
+                   class="w-full rounded-md border-slate-300 shadow-sm focus:border-sky-500 focus:ring-sky-500">
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div class="space-y-1">
+                <label class="block text-sm font-medium text-slate-700">Bairro</label>
+                <input type="text" name="bairro"
+                       value="{{ form.bairro|default_if_none:'' }}"
+                       class="w-full rounded-md border-slate-300 shadow-sm focus:border-sky-500 focus:ring-sky-500">
+            </div>
+            <div class="space-y-1">
+                <label class="block text-sm font-medium text-slate-700">UF</label>
+                <select name="estado_id" id="id_estado"
+                        class="w-full rounded-md border-slate-300 shadow-sm focus:border-sky-500 focus:ring-sky-500">
+                    <option value="">Selecione</option>
+                    {% for e in estados %}
+                        <option value="{{ e.id }}" {% if form.estado_id == e.id %}selected{% endif %}>
+                            {{ e.uf }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="space-y-1">
+                <label class="block text-sm font-medium text-slate-700">Cidade</label>
+                <select name="cidade_id" id="id_cidade"
+                        class="w-full rounded-md border-slate-300 shadow-sm focus:border-sky-500 focus:ring-sky-500">
+                    <option value="">Selecione a cidade</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div class="space-y-1">
+                <label class="block text-sm font-medium text-slate-700">Tipo</label>
+                <select name="tipo" id="id_tipo"
+                        class="w-full rounded-md border-slate-300 shadow-sm focus:border-sky-500 focus:ring-sky-500">
+                    {% for value, label in tipo_choices %}
+                        <option value="{{ value }}" {% if form.tipo %}{% if form.tipo == value %}selected{% endif %}{% elif pessoa %}{% if pessoa.tipo == value %}selected{% endif %}{% else %}{% if value == 'J' %}selected{% endif %}{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="space-y-1">
+                <label class="block text-sm font-medium text-slate-700">Cliente / Fornecedor</label>
+                <select name="tipo_cadastro"
+                        class="w-full rounded-md border-slate-300 shadow-sm focus:border-sky-500 focus:ring-sky-500">
+                    {% for value, label in tipo_cadastro_choices %}
+                        <option value="{{ value }}" {% if form.tipo_cadastro %}{% if form.tipo_cadastro == value %}selected{% endif %}{% elif pessoa %}{% if pessoa.tipo_cadastro == value %}selected{% endif %}{% else %}{% if value == 'A' %}selected{% endif %}{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div class="space-y-1">
+                <label class="block text-sm font-medium text-slate-700">Telefone</label>
+                <input type="tel" name="telefone" id="id_telefone"
+                       value="{{ form.telefone|default_if_none:'' }}"
+                       class="w-full rounded-md border-slate-300 shadow-sm focus:border-sky-500 focus:ring-sky-500">
+            </div>
+            <div class="space-y-1">
+                <label class="block text-sm font-medium text-slate-700">Celular</label>
+                <input type="tel" name="celular" id="id_celular"
+                       value="{{ form.celular|default_if_none:'' }}"
+                       class="w-full rounded-md border-slate-300 shadow-sm focus:border-sky-500 focus:ring-sky-500">
+            </div>
+            <div class="space-y-1">
+                <label class="block text-sm font-medium text-slate-700">WhatsApp</label>
+                <div class="flex items-center gap-2 pt-1">
+                    <input type="checkbox" name="whatsapp" value="1" id="id_whatsapp"
+                           {% if form.whatsapp %}checked{% endif %}
+                           class="rounded border-slate-300 text-sky-600 focus:ring-sky-500">
+                    <label for="id_whatsapp" class="text-sm text-slate-700">Este celular possui WhatsApp</label>
+                </div>
+            </div>
+        </div>
+
+        <div class="space-y-1">
+            <label class="block text-sm font-medium text-slate-700">E-mail</label>
+            <input type="email" name="email"
+                   value="{{ form.email|default_if_none:'' }}"
+                   class="w-full rounded-md border-slate-300 shadow-sm focus:border-sky-500 focus:ring-sky-500">
+        </div>
+
+        <div class="flex justify-end gap-2 pt-4">
+            <a href="{% url 'cadastros-pessoas' %}"
+               class="px-4 py-2 text-sm rounded-md border border-slate-300 text-slate-700 hover:bg-slate-50">
+                Cancelar
+            </a>
+            <button type="submit"
+                    class="px-4 py-2 text-sm rounded-md bg-sky-600 text-white font-medium hover:bg-sky-700">
+                Salvar
+            </button>
+        </div>
+    </form>
+</div>
+
+<script>
+(function() {
+    var input = document.getElementById('id_cpf_cnpj');
+    if (!input) return;
+
+    function apenasDigitos(s) {
+        return (s || '').replace(/\D/g, '');
+    }
+
+    function mascaraCPF(v) {
+        return v.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4');
+    }
+
+    function mascaraCNPJ(v) {
+        return v.replace(/(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})/, '$1.$2.$3/$4-$5');
+    }
+
+    function formatar() {
+        var d = apenasDigitos(input.value);
+        d = d.slice(0, 14);
+        if (d.length <= 11) {
+            input.value = d.replace(/(\d{1,3})(\d{0,3})(\d{0,3})(\d{0,2})/, function(_, a, b, c, e) {
+                var r = a;
+                if (b) r += '.' + b;
+                if (c) r += '.' + c;
+                if (e) r += '-' + e;
+                return r;
+            });
+        } else {
+            input.value = d.replace(/(\d{2})(\d{0,3})(\d{0,3})(\d{0,4})(\d{0,2})/, function(_, a, b, c, d4, e) {
+                var r = a;
+                if (b) r += '.' + b;
+                if (c) r += '.' + c;
+                if (d4) r += '/' + d4;
+                if (e) r += '-' + e;
+                return r;
+            });
+        }
+    }
+
+    input.addEventListener('input', function() {
+        formatar();
+    });
+
+    input.addEventListener('keypress', function(e) {
+        if (e.key && !/\d/.test(e.key) && !e.ctrlKey && !e.metaKey && e.key.length === 1) {
+            e.preventDefault();
+        }
+    });
+
+    input.addEventListener('paste', function(e) {
+        e.preventDefault();
+        var text = (e.clipboardData || window.clipboardData).getData('text');
+        var d = apenasDigitos(text).slice(0, 14);
+        input.value = '';
+        if (d.length <= 11) {
+            input.value = d.replace(/(\d{1,3})(\d{0,3})(\d{0,3})(\d{0,2})/, function(_, a, b, c, e) {
+                var r = a;
+                if (b) r += '.' + b;
+                if (c) r += '.' + c;
+                if (e) r += '-' + e;
+                return r;
+            });
+        } else {
+            input.value = d.replace(/(\d{2})(\d{0,3})(\d{0,3})(\d{0,4})(\d{0,2})/, function(_, a, b, c, d4, e) {
+                var r = a;
+                if (b) r += '.' + b;
+                if (c) r += '.' + c;
+                if (d4) r += '/' + d4;
+                if (e) r += '-' + e;
+                return r;
+            });
+        }
+    });
+
+    // Formatar valor inicial (vindo do backend só com números)
+    if (input.value) {
+        formatar();
+    }
+
+    // Ao sair do campo CPF/CNPJ, definir Tipo automaticamente: 11 dígitos = CPF (F), 12+ = CNPJ (J)
+    var selectTipo = document.getElementById('id_tipo');
+    if (selectTipo) {
+        input.addEventListener('blur', function() {
+            var d = apenasDigitos(input.value);
+            if (d.length === 11) {
+                selectTipo.value = 'F';
+            } else if (d.length >= 12) {
+                selectTipo.value = 'J';
+            }
+        });
+    }
+})();
+
+// UF x Cidade (usa todas_cidades do backend)
+(function() {
+    var selectEstado = document.getElementById('id_estado');
+    var selectCidade = document.getElementById('id_cidade');
+    if (!selectEstado || !selectCidade) return;
+
+    // Lista de cidades vinda do backend
+    var CIDADES = [
+        {% for c in todas_cidades %}
+        {id: {{ c.id }}, nome: "{{ c.nome|escapejs }}", estado_id: {{ c.estado_id }} }{% if not forloop.last %},{% endif %}
+        {% endfor %}
+    ];
+
+    var selectedEstado = {{ form.estado_id|default:'null' }};
+    var selectedCidade = {{ form.cidade_id|default:'null' }};
+
+    function preencherCidades(estadoId, cidadeSelecionada) {
+        selectCidade.innerHTML = '<option value=\"\">Selecione a cidade</option>';
+        if (!estadoId) return;
+        CIDADES.forEach(function(c) {
+            if (c.estado_id === estadoId) {
+                var opt = document.createElement('option');
+                opt.value = c.id;
+                opt.textContent = c.nome;
+                if (cidadeSelecionada && c.id === cidadeSelecionada) {
+                    opt.selected = true;
+                }
+                selectCidade.appendChild(opt);
+            }
+        });
+    }
+
+    // Ao trocar UF, recarrega cidades
+    selectEstado.addEventListener('change', function() {
+        var eid = parseInt(this.value || '0', 10) || null;
+        preencherCidades(eid, null);
+    });
+
+    // Inicial: se já tiver UF/Cidade selecionados
+    if (selectedEstado) {
+        preencherCidades(selectedEstado, selectedCidade);
+    }
+})();
+
+// Máscara de telefone/celular
+(function() {
+    function apenasDigitos(s) {
+        return (s || '').replace(/\D/g, '');
+    }
+
+    function formatarTelefone(el) {
+        var d = apenasDigitos(el.value).slice(0, 11);
+        if (!d) {
+            el.value = '';
+            return;
+        }
+        if (d.length <= 10) {
+            // Fixo: (99) 9999-9999
+            el.value = d.replace(/(\d{0,2})(\d{0,4})(\d{0,4})/, function(_, a, b, c) {
+                var r = '';
+                if (a) {
+                    r = '(' + a;
+                    if (a.length === 2) r += ') ';
+                }
+                if (b) {
+                    r += b;
+                    if (b.length === 4 && c) r += '-' + c;
+                }
+                return r;
+            });
+        } else {
+            // Celular: (99) 99999-9999
+            el.value = d.replace(/(\d{0,2})(\d{0,5})(\d{0,4})/, function(_, a, b, c) {
+                var r = '';
+                if (a) {
+                    r = '(' + a;
+                    if (a.length === 2) r += ') ';
+                }
+                if (b) {
+                    r += b;
+                    if (b.length === 5 && c) r += '-' + c;
+                }
+                return r;
+            });
+        }
+    }
+
+    ['id_telefone', 'id_celular'].forEach(function(id) {
+        var el = document.getElementById(id);
+        if (!el) return;
+
+        el.addEventListener('input', function() {
+            formatarTelefone(el);
+        });
+
+        el.addEventListener('keypress', function(e) {
+            if (e.key && !/\d/.test(e.key) && !e.ctrlKey && !e.metaKey && e.key.length === 1) {
+                e.preventDefault();
+            }
+        });
+
+        el.addEventListener('paste', function(e) {
+            e.preventDefault();
+            var text = (e.clipboardData || window.clipboardData).getData('text');
+            el.value = apenasDigitos(text).slice(0, 11);
+            formatarTelefone(el);
+        });
+
+        // Formatar valor inicial, se já existir
+        if (el.value) {
+            formatarTelefone(el);
+        }
+    });
+})();
+</script>
+{% endblock %}

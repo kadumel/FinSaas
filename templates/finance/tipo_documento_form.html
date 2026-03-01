@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+
+{% block title %}{% if tipo %}Editar tipo de documento{% else %}Novo tipo de documento{% endif %} · Cadastros{% endblock %}
+
+{% block content %}
+<div class="max-w-xl mx-auto">
+    <h1 class="text-2xl font-semibold text-slate-800 mb-2">
+        {% if tipo %}Editar tipo de documento{% else %}Novo tipo de documento{% endif %}
+    </h1>
+    <p class="text-sm text-slate-500 mb-4">Cadastro de tipos de documento por empresa.</p>
+
+    <form method="post" class="bg-white rounded-xl shadow-sm border border-slate-200 p-6 space-y-4">
+        {% csrf_token %}
+
+        <div class="space-y-1">
+            <label class="block text-sm font-medium text-slate-700">Nome do tipo de documento</label>
+            <input type="text" name="nome" required
+                   value="{{ form.nome|default_if_none:'' }}"
+                   class="w-full rounded-md border-slate-300 shadow-sm focus:border-sky-500 focus:ring-sky-500"
+                   placeholder="Ex.: Nota Fiscal, Boleto, Fatura">
+        </div>
+
+        <div class="flex justify-end gap-2 pt-4">
+            <a href="{% url 'cadastros-tipos-documento' %}"
+               class="px-4 py-2 text-sm rounded-md border border-slate-300 text-slate-700 hover:bg-slate-50">
+                Cancelar
+            </a>
+            <button type="submit"
+                    class="px-4 py-2 text-sm rounded-md bg-sky-600 text-white font-medium hover:bg-sky-700">
+                Salvar
+            </button>
+        </div>
+    </form>
+</div>
+{% endblock %}
+

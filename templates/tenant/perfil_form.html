@@ -1,0 +1,48 @@
+{% extends "tenant/base_admin.html" %}
+
+{% block title %}
+    {% if perfil %}
+        Editar perfil · {{ perfil.nome }}
+    {% else %}
+        Novo perfil
+    {% endif %}
+{% endblock %}
+
+{% block admin_content %}
+<div class="max-w-xl mx-auto">
+    <h1 class="text-2xl font-semibold text-slate-800 mb-2">
+        {% if perfil %}Editar perfil{% else %}Novo perfil{% endif %}
+    </h1>
+    <p class="text-sm text-slate-500 mb-4">
+        Conta: {{ tenant.nome_fantasia|default:tenant.razao_social }}
+    </p>
+
+    <form method="post" class="bg-white rounded-xl shadow-sm border border-slate-200 p-6 space-y-4">
+        {% csrf_token %}
+
+        <div class="space-y-1">
+            <label class="block text-sm font-medium text-slate-700">Nome</label>
+            <input type="text" name="nome" required
+                   value="{{ form.nome|default_if_none:'' }}"
+                   class="w-full rounded-md border-slate-300 shadow-sm focus:border-sky-500 focus:ring-sky-500">
+        </div>
+
+        <div class="space-y-1">
+            <label class="block text-sm font-medium text-slate-700">Descrição</label>
+            <textarea name="descricao" rows="2"
+                      class="w-full rounded-md border-slate-300 shadow-sm focus:border-sky-500 focus:ring-sky-500">{{ form.descricao|default_if_none:'' }}</textarea>
+        </div>
+
+        <div class="flex justify-end gap-2 pt-4">
+            <a href="{% url 'tenant-perfis-list' %}"
+               class="px-4 py-2 text-sm rounded-md border border-slate-300 text-slate-700 hover:bg-slate-50">
+                Cancelar
+            </a>
+            <button type="submit"
+                    class="px-4 py-2 text-sm rounded-md bg-sky-600 text-white font-medium hover:bg-sky-700">
+                Salvar
+            </button>
+        </div>
+    </form>
+</div>
+{% endblock %}

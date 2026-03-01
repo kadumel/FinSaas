@@ -1,0 +1,64 @@
+{% extends "tenant/base_admin.html" %}
+
+{% block title %}Perfis e permissões{% endblock %}
+
+{% block admin_content %}
+<div class="flex flex-col gap-4">
+    <div class="flex items-center justify-between">
+        <div>
+            <h1 class="text-2xl font-semibold text-slate-800">Perfis e permissões</h1>
+            <p class="text-sm text-slate-500">
+                Gerencie perfis e permissões por empresa.
+            </p>
+        </div>
+        <a href="{% url 'tenant-perfis-create' %}"
+           class="inline-flex items-center rounded-md bg-sky-600 px-4 py-2 text-sm font-medium text-white hover:bg-sky-700">
+            Novo perfil
+        </a>
+    </div>
+
+    <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+        <table class="min-w-full text-sm">
+            <thead class="bg-slate-50 text-slate-600 uppercase text-xs tracking-wide text-center">
+                <tr>
+                    <th class="px-4 py-2">Nome</th>
+                    <th class="px-4 py-2">Descrição</th>
+                    <th class="px-4 py-2">Ações</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-100">
+                {% for perfil in perfis %}
+                    <tr class="hover:bg-slate-50">
+                        <td class="px-4 py-2 font-medium text-slate-800">{{ perfil.nome }}</td>
+                        <td class="px-4 py-2 text-slate-600">{{ perfil.descricao|default:"—" }}</td>
+                        <td class="px-4 py-2 text-right space-x-2">
+                            <a href="{% url 'tenant-perfil-permissoes' perfil.id %}"
+                               class="inline-flex items-center rounded-md border border-sky-300 px-2 py-1 text-xs text-sky-700 hover:bg-sky-50"
+                               title="Permissões por empresa">
+                                Permissões
+                            </a>
+                            <a href="{% url 'tenant-perfis-edit' perfil.id %}"
+                               class="inline-flex items-center rounded-md border border-slate-300 px-2 py-1 text-xs text-slate-700 hover:bg-slate-50"
+                               title="Editar perfil">
+                                ✏️
+                            </a>
+                            <a href="{% url 'tenant-perfis-delete' perfil.id %}"
+                               class="inline-flex items-center rounded-md border border-rose-300 px-2 py-1 text-xs text-rose-700 hover:bg-rose-50"
+                               onclick="return confirm('Deseja realmente excluir este perfil?');"
+                               title="Excluir perfil">
+                                🗑️
+                            </a>
+                        </td>
+                    </tr>
+                {% empty %}
+                    <tr>
+                        <td colspan="3" class="px-4 py-4 text-center text-slate-400 text-sm">
+                            Nenhum perfil cadastrado ainda.
+                        </td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

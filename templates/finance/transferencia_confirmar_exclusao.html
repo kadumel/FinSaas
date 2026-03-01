@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+
+{% block title %}Confirmar exclusão · Transferência{% endblock %}
+
+{% block content %}
+<div class="max-w-xl mx-auto">
+    <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+        <h1 class="text-xl font-semibold text-slate-800 mb-2">Excluir transferência</h1>
+        <p class="text-slate-600 text-sm mb-4">
+            Tem certeza que deseja excluir esta transferência? Os lançamentos (débito e crédito) vinculados também serão excluídos. Esta ação não pode ser desfeita.
+        </p>
+        <dl class="border-t border-slate-100 pt-4 space-y-2 text-sm">
+            <div class="flex justify-between gap-4">
+                <dt class="text-slate-500">Data</dt>
+                <dd class="font-medium text-slate-800">{{ transferencia.data|date:"d/m/Y" }}</dd>
+            </div>
+            <div class="flex justify-between gap-4">
+                <dt class="text-slate-500">Conta origem</dt>
+                <dd class="font-medium text-slate-800">
+                    {{ transferencia.conta_origem.banco.nome }} {{ transferencia.conta_origem.agencia }}/{{ transferencia.conta_origem.conta }}
+                    <span class="text-slate-500">({{ transferencia.conta_origem.empresa.razao_social }})</span>
+                </dd>
+            </div>
+            <div class="flex justify-between gap-4">
+                <dt class="text-slate-500">Conta destino</dt>
+                <dd class="font-medium text-slate-800">
+                    {{ transferencia.conta_destino.banco.nome }} {{ transferencia.conta_destino.agencia }}/{{ transferencia.conta_destino.conta }}
+                    <span class="text-slate-500">({{ transferencia.conta_destino.empresa.razao_social }})</span>
+                </dd>
+            </div>
+            <div class="flex justify-between gap-4">
+                <dt class="text-slate-500">Valor</dt>
+                <dd class="font-medium text-slate-800">R$ {{ transferencia.valor|floatformat:2 }}</dd>
+            </div>
+        </dl>
+
+        <form method="post" action="{% url 'financeiro-transferencias-excluir' transferencia.id %}" class="mt-6 flex flex-wrap items-center gap-3">
+            {% csrf_token %}
+            <button type="submit"
+                    class="px-4 py-2 rounded-md bg-rose-600 text-white text-sm font-medium hover:bg-rose-700">
+                Sim, excluir
+            </button>
+            <a href="{% url 'financeiro-transferencias' %}"
+               class="px-4 py-2 rounded-md border border-slate-300 text-slate-700 text-sm font-medium hover:bg-slate-50">
+                Cancelar
+            </a>
+        </form>
+    </div>
+</div>
+{% endblock %}

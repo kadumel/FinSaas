@@ -1,0 +1,88 @@
+{% extends "base.html" %}
+
+{% block title %}{% if conta %}Editar conta financeira{% else %}Nova conta financeira{% endif %} · Cadastros{% endblock %}
+
+{% block content %}
+<div class="max-w-xl mx-auto">
+    <h1 class="text-2xl font-semibold text-slate-800 mb-2">
+        {% if conta %}Editar conta financeira{% else %}Nova conta financeira{% endif %}
+    </h1>
+    <p class="text-sm text-slate-500 mb-4">Cadastro de contas bancárias para movimentações financeiras.</p>
+
+    <form method="post" class="bg-white rounded-xl shadow-sm border border-slate-200 p-6 space-y-4">
+        {% csrf_token %}
+
+        <div class="space-y-1">
+            <label class="block text-sm font-medium text-slate-700">Empresa</label>
+            <select name="empresa_id"
+                    class="w-full rounded-md border-slate-300 shadow-sm focus:border-sky-500 focus:ring-sky-500">
+                <option value="">Selecione</option>
+                {% for e in empresas %}
+                    <option value="{{ e.id }}"
+                            {% if form.empresa_id %}
+                                {% if form.empresa_id == e.id %}selected{% endif %}
+                            {% elif conta %}
+                                {% if conta.empresa_id == e.id %}selected{% endif %}
+                            {% endif %}>
+                        {{ e.razao_social }}
+                    </option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div class="space-y-1">
+            <label class="block text-sm font-medium text-slate-700">Banco</label>
+            <select name="banco_id"
+                    class="w-full rounded-md border-slate-300 shadow-sm focus:border-sky-500 focus:ring-sky-500">
+                <option value="">Selecione</option>
+                {% for b in bancos %}
+                    <option value="{{ b.id }}"
+                            {% if form.banco_id %}
+                                {% if form.banco_id == b.id %}selected{% endif %}
+                            {% elif conta %}
+                                {% if conta.banco_id == b.id %}selected{% endif %}
+                            {% endif %}>
+                        {{ b.codigo }} - {{ b.nome }}
+                    </option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div class="space-y-1">
+                <label class="block text-sm font-medium text-slate-700">Agência</label>
+                <input type="text" name="agencia" required
+                       value="{{ form.agencia|default_if_none:'' }}"
+                       class="w-full rounded-md border-slate-300 shadow-sm focus:border-sky-500 focus:ring-sky-500">
+            </div>
+            <div class="space-y-1">
+                <label class="block text-sm font-medium text-slate-700">Conta</label>
+                <input type="text" name="conta" required
+                       value="{{ form.conta|default_if_none:'' }}"
+                       class="w-full rounded-md border-slate-300 shadow-sm focus:border-sky-500 focus:ring-sky-500">
+            </div>
+        </div>
+
+        <div class="space-y-1">
+            <label class="block text-sm font-medium text-slate-700">Saldo inicial</label>
+            <input type="text" name="saldo_inicial"
+                   value="{{ form.saldo_inicial|default_if_none:'' }}"
+                   placeholder="0,00"
+                   class="w-40 rounded-md border-slate-300 shadow-sm focus:border-sky-500 focus:ring-sky-500">
+            <p class="text-xs text-slate-500">Informe o saldo de abertura da conta (opcional).</p>
+        </div>
+
+        <div class="flex justify-end gap-2 pt-4">
+            <a href="{% url 'cadastros-contas-financeiras' %}"
+               class="px-4 py-2 text-sm rounded-md border border-slate-300 text-slate-700 hover:bg-slate-50">
+                Cancelar
+            </a>
+            <button type="submit"
+                    class="px-4 py-2 text-sm rounded-md bg-sky-600 text-white font-medium hover:bg-sky-700">
+                Salvar
+            </button>
+        </div>
+    </form>
+</div>
+{% endblock %}
+

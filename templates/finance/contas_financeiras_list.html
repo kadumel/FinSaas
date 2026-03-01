@@ -1,0 +1,176 @@
+{% extends "base.html" %}
+
+{% block title %}Contas Financeiras · Cadastros{% endblock %}
+
+{% block content %}
+<div class="flex flex-col gap-4">
+    <div class="flex items-center justify-between">
+        <div>
+            <h1 class="text-2xl font-semibold text-slate-800">Contas Financeiras</h1>
+            <p class="text-sm text-slate-500">Cadastro de contas bancárias por empresa.</p>
+        </div>
+        <a href="{% url 'cadastros-contas-financeiras-novo' %}"
+           class="inline-flex items-center rounded-md bg-sky-600 px-4 py-2 text-sm font-medium text-white hover:bg-sky-700">
+            Nova conta
+        </a>
+    </div>
+
+    <form method="get" action="{% url 'cadastros-contas-financeiras' %}"
+          class="bg-white rounded-xl shadow-sm border border-slate-200 p-4 flex flex-wrap items-end gap-4">
+        <div class="w-48">
+            <label class="block text-xs font-medium text-slate-500 mb-1">Banco</label>
+            <select name="banco_id"
+                    class="w-full rounded-md border-slate-300 text-sm shadow-sm focus:border-sky-500 focus:ring-sky-500">
+                <option value="">Todos</option>
+                {% for b in bancos %}
+                    <option value="{{ b.id }}" {% if filtros.banco_id == b.id %}selected{% endif %}>
+                        {{ b.codigo }} - {{ b.nome }}
+                    </option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="w-32">
+            <label class="block text-xs font-medium text-slate-500 mb-1">Agência</label>
+            <input type="text" name="agencia" value="{{ filtros.agencia }}"
+                   class="w-full rounded-md border-slate-300 text-sm shadow-sm focus:border-sky-500 focus:ring-sky-500">
+        </div>
+        <div class="w-32">
+            <label class="block text-xs font-medium text-slate-500 mb-1">Conta</label>
+            <input type="text" name="conta" value="{{ filtros.conta }}"
+                   class="w-full rounded-md border-slate-300 text-sm shadow-sm focus:border-sky-500 focus:ring-sky-500">
+        </div>
+        <button type="submit"
+                class="px-4 py-2 rounded-md bg-slate-700 text-white text-sm font-medium hover:bg-slate-800">
+            Filtrar
+        </button>
+        <a href="{% url 'cadastros-contas-financeiras' %}"
+           class="px-4 py-2 rounded-md border border-slate-300 text-slate-700 text-sm hover:bg-slate-50">
+            Limpar
+        </a>
+    </form>
+
+    <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+        <table class="min-w-full text-sm">
+            <thead class="bg-slate-50 text-slate-600 uppercase text-xs tracking-wide text-center">
+                <tr>
+                    <th class="px-4 py-2 text-left">Empresa</th>
+                    <th class="px-4 py-2 text-left">Banco</th>
+                    <th class="px-4 py-2 text-left">Agência</th>
+                    <th class="px-4 py-2 text-left">Conta</th>
+                    <th class="px-4 py-2 text-right">Saldo inicial</th>
+                    <th class="px-4 py-2">Ações</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-100">
+                {% for c in contas %}
+                    <tr class="hover:bg-slate-50">
+                        <td class="px-4 py-2 text-slate-700">{{ c.empresa.razao_social }}</td>
+                        <td class="px-4 py-2 text-slate-700">{{ c.banco.codigo }} - {{ c.banco.nome }}</td>
+                        <td class="px-4 py-2 text-slate-700">{{ c.agencia }}</td>
+                        <td class="px-4 py-2 text-slate-700">{{ c.conta }}</td>
+                        <td class="px-4 py-2 text-right text-slate-800">
+                            R$ {{ c.saldo_inicial|floatformat:2 }}
+                        </td>
+                        <td class="px-4 py-2 text-right space-x-2">
+                            <a href="{% url 'cadastros-contas-financeiras-editar' c.id %}"
+                               class="inline-flex items-center rounded-md border border-slate-300 px-2 py-1 text-xs text-slate-700 hover:bg-slate-50"
+                               title="Editar">
+                                ✏️
+                            </a>
+                            <button type="button"
+                                    class="btn-excluir-conta inline-flex items-center rounded-md border border-rose-300 px-2 py-1 text-xs text-rose-700 hover:bg-rose-50"
+                                    title="Excluir"
+                                    data-conta-id="{{ c.id }}"
+                                    data-conta-descricao="{{ c.banco.nome }} – {{ c.agencia }}/{{ c.conta|escape }}">
+                                🗑️
+                            </button>
+                        </td>
+                    </tr>
+                {% empty %}
+                    <tr>
+                        <td colspan="6" class="px-4 py-8 text-center text-slate-400 text-sm">
+                            Nenhuma conta financeira encontrada. Use os filtros ou cadastre uma nova.
+                        </td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+{# Modal confirmar exclusão de conta financeira #}
+<div id="modal-excluir-conta" class="fixed inset-0 z-50 hidden" aria-hidden="true">
+    <div class="fixed inset-0 bg-black/50" id="modal-excluir-conta-backdrop"></div>
+    <div class="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-md bg-white rounded-xl shadow-xl border border-slate-200 p-6">
+        <div class="flex justify-between items-start mb-4">
+            <h2 class="text-lg font-semibold text-slate-800">Excluir conta financeira</h2>
+            <button type="button" id="modal-excluir-conta-fechar" class="text-slate-400 hover:text-slate-600 text-xl leading-none">✕</button>
+        </div>
+        <p class="text-sm text-slate-600 mb-2">
+            Deseja realmente excluir a conta <strong id="modal-excluir-conta-descricao" class="text-slate-800"></strong>?
+        </p>
+        <p class="text-xs text-slate-500 mb-6">
+            Esta ação não pode ser desfeita. Não será possível excluir se existirem lançamentos vinculados.
+        </p>
+        <div class="flex justify-end gap-2">
+            <button type="button" id="modal-excluir-conta-cancelar"
+                    class="px-4 py-2 rounded-md border border-slate-300 text-slate-700 text-sm font-medium hover:bg-slate-50">
+                Cancelar
+            </button>
+            <a href="#" id="modal-excluir-conta-confirmar"
+               class="px-4 py-2 rounded-md bg-rose-600 text-white text-sm font-medium hover:bg-rose-700">
+                Excluir
+            </a>
+        </div>
+    </div>
+</div>
+
+<script>
+(function() {
+    var modal = document.getElementById("modal-excluir-conta");
+    if (!modal) return;
+    var descricaoEl = document.getElementById("modal-excluir-conta-descricao");
+    var linkConfirmar = document.getElementById("modal-excluir-conta-confirmar");
+    var btnFechar = document.getElementById("modal-excluir-conta-fechar");
+    var btnCancelar = document.getElementById("modal-excluir-conta-cancelar");
+    var backdrop = document.getElementById("modal-excluir-conta-backdrop");
+    var urlLista = "{% url 'cadastros-contas-financeiras' %}";
+    var urlVerificarExcluir = "{% url 'cadastros-contas-financeiras-verificar-excluir' %}";
+    var urlExcluirTemplate = "{% url 'cadastros-contas-financeiras-excluir' 0 %}";
+
+    function abrirModal(contaId, contaDescricao) {
+        if (descricaoEl) descricaoEl.textContent = contaDescricao || "—";
+        if (linkConfirmar) linkConfirmar.href = urlExcluirTemplate.replace(/\/0\//, "/" + contaId + "/");
+        modal.classList.remove("hidden");
+    }
+    function fecharModal() {
+        modal.classList.add("hidden");
+    }
+
+    document.addEventListener("click", function(e) {
+        var btn = e.target.closest(".btn-excluir-conta");
+        if (!btn) return;
+        e.preventDefault();
+        var id = btn.getAttribute("data-conta-id");
+        var descricao = btn.getAttribute("data-conta-descricao") || "";
+        if (!id) return;
+        fetch(urlVerificarExcluir + "?conta_id=" + encodeURIComponent(id))
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                if (!data.pode_excluir) {
+                    window.location.href = urlLista + "?erro_excluir=permissao";
+                    return;
+                }
+                abrirModal(id, descricao);
+            })
+            .catch(function() {
+                window.location.href = urlLista + "?erro_excluir=erro";
+            });
+    });
+    if (btnFechar) btnFechar.addEventListener("click", fecharModal);
+    if (btnCancelar) btnCancelar.addEventListener("click", fecharModal);
+    if (backdrop) backdrop.addEventListener("click", fecharModal);
+})();
+</script>
+{% endblock %}
+

@@ -1,0 +1,86 @@
+{% extends "tenant/base_admin.html" %}
+
+{% block title %}Usuários da conta{% endblock %}
+
+{% block admin_content %}
+<div class="flex flex-col gap-4">
+    <div class="flex items-center justify-between">
+        <div>
+            <h1 class="text-2xl font-semibold text-slate-800">Usuários da conta</h1>
+            <p class="text-sm text-slate-500">
+                Gestão de usuários desta conta.
+            </p>
+        </div>
+        <a href="{% url 'tenant-usuarios-create' %}"
+           class="inline-flex items-center rounded-md bg-sky-600 px-4 py-2 text-sm font-medium text-white hover:bg-sky-700">
+            Novo usuário
+        </a>
+    </div>
+
+    <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+        <table class="min-w-full text-sm">
+            <thead class="bg-slate-50 text-slate-600 uppercase text-xs tracking-wide text-center">
+                <tr>
+                    <th class="px-4 py-2">Nome</th>
+                    <th class="px-4 py-2">E-mail</th>
+                    <th class="px-4 py-2">Admin</th>
+                    <th class="px-4 py-2">Ativo</th>
+                    <th class="px-4 py-2">Ações</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-100">
+                {% for usuario in usuarios %}
+                    <tr class="hover:bg-slate-50">
+                        <td class="px-4 py-2">{{ usuario.nome }}</td>
+                        <td class="px-4 py-2 text-slate-600">{{ usuario.email }}</td>
+                        <td class="px-4 py-2 text-center">
+                            {% if usuario.is_tenant_admin %}
+                                <span class="inline-flex px-2 py-1 text-xs rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
+                                    Sim
+                                </span>
+                            {% else %}
+                                <span class="inline-flex px-2 py-1 text-xs rounded-full bg-slate-50 text-slate-600 border border-slate-200">
+                                    Não
+                                </span>
+                            {% endif %}
+                        </td>
+                        <td class="px-4 py-2 text-center">
+                            {% if usuario.ativo %}
+                                <span class="inline-flex px-2 py-1 text-xs rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
+                                    Sim
+                                </span>
+                            {% else %}
+                                <span class="inline-flex px-2 py-1 text-xs rounded-full bg-slate-50 text-slate-600 border border-slate-200">
+                                    Não
+                                </span>
+                            {% endif %}
+                        </td>
+                        <td class="px-4 py-2 text-right space-x-2">
+                            <a href="{% url 'tenant-usuarios-edit' usuario.id %}"
+                               class="inline-flex items-center rounded-md border border-slate-300 px-2 py-1 text-xs text-slate-700 hover:bg-slate-50"
+                               title="Editar usuário">
+                                ✏️
+                            </a>
+                            {% if not usuario.is_tenant_admin %}
+                                <a href="{% url 'tenant-usuarios-delete' usuario.id %}"
+                                   class="inline-flex items-center rounded-md border border-rose-300 px-2 py-1 text-xs text-rose-700 hover:bg-rose-50"
+                                   onclick="return confirm('Deseja realmente excluir este usuário?');"
+                                   title="Excluir usuário">
+                                    🗑️
+                                </a>
+                            {% endif %}
+                        </td>
+                    </tr>
+                {% empty %}
+                    <tr>
+                        <td colspan="5" class="px-4 py-4 text-center text-slate-400 text-sm">
+                            Nenhum usuário cadastrado ainda.
+                        </td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
+

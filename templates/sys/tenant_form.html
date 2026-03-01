@@ -1,0 +1,108 @@
+{% extends "base.html" %}
+
+{% block title %}Novo tenant · Sistema{% endblock %}
+
+{% block content %}
+<div class="max-w-xl mx-auto">
+    <h1 class="text-2xl font-semibold text-slate-800 mb-2">Novo tenant</h1>
+    <p class="text-sm text-slate-500 mb-4">
+        Cadastro do cliente (tenant) e do seu primeiro usuário administrador.
+    </p>
+
+    {% if errors %}
+        <div class="mb-4 rounded-md border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-800">
+            <ul class="list-disc list-inside space-y-1">
+                {% for error in errors %}
+                    <li>{{ error }}</li>
+                {% endfor %}
+            </ul>
+        </div>
+    {% endif %}
+
+    <form method="post" class="bg-white rounded-xl shadow-sm border border-slate-200 p-6 space-y-6">
+        {% csrf_token %}
+
+        <div class="space-y-1">
+            <label class="block text-sm font-medium text-slate-700">Razão social</label>
+            <input type="text" name="razao_social" required
+                   value="{{ form.razao_social|default_if_none:'' }}"
+                   class="w-full rounded-md border-slate-300 shadow-sm focus:border-sky-500 focus:ring-sky-500">
+        </div>
+
+        <div class="space-y-1">
+            <label class="block text-sm font-medium text-slate-700">Nome fantasia</label>
+            <input type="text" name="nome_fantasia"
+                   value="{{ form.nome_fantasia|default_if_none:'' }}"
+                   class="w-full rounded-md border-slate-300 shadow-sm focus:border-sky-500 focus:ring-sky-500">
+        </div>
+
+        <div class="space-y-1">
+            <label class="block text-sm font-medium text-slate-700">CNPJ</label>
+            <input type="text" name="cnpj" required
+                   value="{{ form.cnpj|default_if_none:'' }}"
+                   class="w-full rounded-md border-slate-300 shadow-sm focus:border-sky-500 focus:ring-sky-500">
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div class="space-y-1">
+                <label class="block text-sm font-medium text-slate-700">Qtd. empresas contratadas</label>
+                <input type="number" name="qtd_empresas_contratadas"
+                       value="{{ form.qtd_empresas_contratadas|default:1 }}" min="1"
+                       class="w-full rounded-md border-slate-300 shadow-sm focus:border-sky-500 focus:ring-sky-500">
+            </div>
+
+            <div class="space-y-1">
+                <label class="block text-sm font-medium text-slate-700">Qtd. usuários contratados</label>
+                <input type="number" name="qtd_usuarios_contratados"
+                       value="{{ form.qtd_usuarios_contratados|default:1 }}" min="1"
+                       class="w-full rounded-md border-slate-300 shadow-sm focus:border-sky-500 focus:ring-sky-500">
+            </div>
+        </div>
+
+        <hr class="border-slate-200">
+
+        <div class="space-y-3">
+            <h2 class="text-sm font-semibold text-slate-700">Administrador do tenant</h2>
+
+            <div class="space-y-1">
+                <label class="block text-sm font-medium text-slate-700">Nome</label>
+                <input type="text" name="admin_nome" required
+                       value="{{ form.admin_nome|default_if_none:'' }}"
+                       class="w-full rounded-md border-slate-300 shadow-sm focus:border-sky-500 focus:ring-sky-500">
+            </div>
+
+            <div class="space-y-1">
+                <label class="block text-sm font-medium text-slate-700">E-mail</label>
+                <input type="email" name="admin_email" required
+                       value="{{ form.admin_email|default_if_none:'' }}"
+                       class="w-full rounded-md border-slate-300 shadow-sm focus:border-sky-500 focus:ring-sky-500">
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div class="space-y-1">
+                    <label class="block text-sm font-medium text-slate-700">Senha</label>
+                    <input type="password" name="admin_password1" required
+                           class="w-full rounded-md border-slate-300 shadow-sm focus:border-sky-500 focus:ring-sky-500">
+                </div>
+                <div class="space-y-1">
+                    <label class="block text-sm font-medium text-slate-700">Confirmar senha</label>
+                    <input type="password" name="admin_password2" required
+                           class="w-full rounded-md border-slate-300 shadow-sm focus:border-sky-500 focus:ring-sky-500">
+                </div>
+            </div>
+        </div>
+
+        <div class="flex justify-end gap-2 pt-4">
+            <a href="{% url 'sys-tenant-list' %}"
+               class="px-4 py-2 text-sm rounded-md border border-slate-300 text-slate-700 hover:bg-slate-50">
+                Cancelar
+            </a>
+            <button type="submit"
+                    class="px-4 py-2 text-sm rounded-md bg-sky-600 text-white font-medium hover:bg-sky-700">
+                Salvar
+            </button>
+        </div>
+    </form>
+</div>
+{% endblock %}
+

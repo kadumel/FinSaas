@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+
+{% block content %}
+<nav class="mb-6 flex flex-wrap gap-1 border-b border-slate-200 pb-2">
+    <a href="{% url 'tenant-admin-home' %}"
+       class="px-4 py-2 text-sm font-medium rounded-t-md {% if request.resolver_match.url_name == 'tenant-admin-home' %}bg-slate-200 text-slate-800{% else %}text-slate-600 hover:bg-slate-100{% endif %}">
+        Início
+    </a>
+    <a href="{% url 'tenant-empresas-list' %}"
+       class="px-4 py-2 text-sm font-medium rounded-t-md {% if 'tenant-empresas' in request.resolver_match.url_name %}bg-slate-200 text-slate-800{% else %}text-slate-600 hover:bg-slate-100{% endif %}">
+        Empresas
+    </a>
+    <a href="{% url 'tenant-usuarios-list' %}"
+       class="px-4 py-2 text-sm font-medium rounded-t-md {% if 'tenant-usuarios' in request.resolver_match.url_name %}bg-slate-200 text-slate-800{% else %}text-slate-600 hover:bg-slate-100{% endif %}">
+        Usuários
+    </a>
+    <a href="{% url 'tenant-perfis-list' %}"
+       class="px-4 py-2 text-sm font-medium rounded-t-md {% if 'tenant-perfis' in request.resolver_match.url_name %}bg-slate-200 text-slate-800{% else %}text-slate-600 hover:bg-slate-100{% endif %}">
+        Perfis e permissões
+    </a>
+    <a href="{% url 'tenant-config-list' %}"
+       class="px-4 py-2 text-sm font-medium rounded-t-md {% if 'tenant-config' in request.resolver_match.url_name %}bg-slate-200 text-slate-800{% else %}text-slate-600 hover:bg-slate-100{% endif %}">
+        Configurações
+    </a>
+</nav>
+
+{% block admin_content %}{% endblock %}
+{% endblock %}

@@ -1,0 +1,274 @@
+{% extends "base.html" %}
+
+{% block title %}Transferências · Financeiro{% endblock %}
+
+{% block content %}
+<div class="flex flex-col gap-4">
+    <div class="flex items-center justify-between">
+        <div>
+            <h1 class="text-2xl font-semibold text-slate-800">Transferências</h1>
+            <p class="text-sm text-slate-500">Transfira valores entre contas financeiras da mesma empresa matriz (matriz e filiais).</p>
+        </div>
+        <button type="button" id="btn-nova-transferencia"
+                class="inline-flex items-center rounded-md bg-sky-600 px-4 py-2 text-sm font-medium text-white hover:bg-sky-700">
+            Nova transferência
+        </button>
+    </div>
+
+    <form method="get" action="{% url 'financeiro-transferencias' %}"
+          class="bg-white rounded-xl shadow-sm border border-slate-200 p-4 flex flex-wrap items-end gap-4">
+        <div class="w-40">
+            <label class="block text-xs font-medium text-slate-500 mb-1">Data (de)</label>
+            <input type="date" name="data_de" value="{{ filtros.data_de|default_if_none:'' }}"
+                   class="w-full rounded-md border-slate-300 text-sm shadow-sm focus:border-sky-500 focus:ring-sky-500">
+        </div>
+        <div class="w-40">
+            <label class="block text-xs font-medium text-slate-500 mb-1">Data (até)</label>
+            <input type="date" name="data_ate" value="{{ filtros.data_ate|default_if_none:'' }}"
+                   class="w-full rounded-md border-slate-300 text-sm shadow-sm focus:border-sky-500 focus:ring-sky-500">
+        </div>
+        <div class="w-64">
+            <label class="block text-xs font-medium text-slate-500 mb-1">Conta origem</label>
+            <select name="conta_origem_id"
+                    class="w-full rounded-md border-slate-300 text-sm shadow-sm focus:border-sky-500 focus:ring-sky-500">
+                <option value="">Todas</option>
+                {% for cf in contas_financeiras %}
+                    <option value="{{ cf.id }}" {% if selected_conta_origem_id == cf.id %}selected{% endif %}>
+                        {{ cf.empresa.razao_social }} – {{ cf.banco.nome }} {{ cf.agencia }}/{{ cf.conta }}
+                    </option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="w-64">
+            <label class="block text-xs font-medium text-slate-500 mb-1">Conta destino</label>
+            <select name="conta_destino_id"
+                    class="w-full rounded-md border-slate-300 text-sm shadow-sm focus:border-sky-500 focus:ring-sky-500">
+                <option value="">Todas</option>
+                {% for cf in contas_financeiras %}
+                    <option value="{{ cf.id }}" {% if selected_conta_destino_id == cf.id %}selected{% endif %}>
+                        {{ cf.empresa.razao_social }} – {{ cf.banco.nome }} {{ cf.agencia }}/{{ cf.conta }}
+                    </option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="flex justify-end gap-2">
+            <button type="submit"
+                    class="px-4 py-2 rounded-md bg-slate-700 text-white text-sm font-medium hover:bg-slate-800">
+                Filtrar
+            </button>
+            <a href="{% url 'financeiro-transferencias' %}"
+               class="px-4 py-2 rounded-md border border-slate-300 text-slate-700 text-sm hover:bg-slate-50">
+                Limpar
+            </a>
+        </div>
+    </form>
+
+    <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+        <h2 class="text-lg font-medium text-slate-800 px-4 py-3 border-b border-slate-100">Histórico de transferências</h2>
+        <table class="min-w-full text-sm">
+            <thead class="bg-slate-50 text-slate-600 uppercase text-xs tracking-wide text-center">
+                <tr>
+                    <th class="px-4 py-2 text-left">Data</th>
+                    <th class="px-4 py-2 text-left">Conta origem</th>
+                    <th class="px-4 py-2 text-left">Conta destino</th>
+                    <th class="px-4 py-2 text-right">Valor (R$)</th>
+                    <th class="px-4 py-2 text-center w-24">Ações</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-100">
+                {% for t in transferencias %}
+                    <tr class="hover:bg-slate-50">
+                        <td class="px-4 py-2 text-slate-700">{{ t.data|date:"d/m/Y" }}</td>
+                        <td class="px-4 py-2 text-slate-700">
+                            <span class="font-medium">{{ t.conta_origem.banco.nome }}</span>
+                            {{ t.conta_origem.agencia }}/{{ t.conta_origem.conta }}
+                            <span class="text-slate-500 text-xs">({{ t.conta_origem.empresa.razao_social }})</span>
+                        </td>
+                        <td class="px-4 py-2 text-slate-700">
+                            <span class="font-medium">{{ t.conta_destino.banco.nome }}</span>
+                            {{ t.conta_destino.agencia }}/{{ t.conta_destino.conta }}
+                            <span class="text-slate-500 text-xs">({{ t.conta_destino.empresa.razao_social }})</span>
+                        </td>
+                        <td class="px-4 py-2 text-right text-slate-800 font-medium">
+                            R$ {{ t.valor|floatformat:2 }}
+                        </td>
+                        <td class="px-4 py-2 text-center">
+                            <div class="inline-flex items-center gap-1">
+                                <a href="{% url 'financeiro-transferencias-editar' t.id %}"
+                                   class="inline-flex items-center rounded-md border border-sky-300 px-2 py-1 text-xs text-sky-700 hover:bg-sky-50"
+                                   title="Editar">
+                                    ✏️
+                                </a>
+                                <a href="{% url 'financeiro-transferencias-excluir' t.id %}"
+                                   class="inline-flex items-center rounded-md border border-rose-300 px-2 py-1 text-xs text-rose-700 hover:bg-rose-50"
+                                   title="Excluir">
+                                    🗑️
+                                </a>
+                            </div>
+                        </td>
+                    </tr>
+                {% empty %}
+                    <tr>
+                        <td colspan="5" class="px-4 py-8 text-center text-slate-400 text-sm">
+                            Nenhuma transferência encontrada. Use os filtros ou clique em Nova transferência.
+                        </td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+{# Modal Nova transferência #}
+<div id="modal-nova-transferencia" class="fixed inset-0 z-50 hidden" aria-hidden="true">
+    <div class="fixed inset-0 bg-black/50" id="modal-transferencia-backdrop"></div>
+    <div class="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-2xl max-h-[90vh] overflow-auto bg-white rounded-xl shadow-xl border border-slate-200 p-6">
+        <div class="flex justify-between items-center mb-4">
+            <h2 class="text-lg font-semibold text-slate-800">Nova transferência</h2>
+            <button type="button" id="modal-transferencia-fechar" class="text-slate-400 hover:text-slate-600 text-xl leading-none">✕</button>
+        </div>
+        <form method="post" action="{% url 'financeiro-transferencias' %}" id="form-nova-transferencia" class="space-y-4">
+            {% csrf_token %}
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div class="space-y-1">
+                    <label class="block text-sm font-medium text-slate-700">Conta de origem</label>
+                    <select name="conta_origem_id" id="conta_origem_id" required
+                            class="w-full rounded-md border-slate-300 shadow-sm focus:border-sky-500 focus:ring-sky-500 text-sm">
+                        <option value="">Selecione...</option>
+                        {% for cf in contas_financeiras %}
+                            <option value="{{ cf.id }}">
+                                {{ cf.empresa.razao_social }} – {{ cf.banco.nome }} {{ cf.agencia }}/{{ cf.conta }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="space-y-1">
+                    <label class="block text-sm font-medium text-slate-700">Conta de destino</label>
+                    <select name="conta_destino_id" id="conta_destino_id" required
+                            class="w-full rounded-md border-slate-300 shadow-sm focus:border-sky-500 focus:ring-sky-500 text-sm">
+                        <option value="">Selecione...</option>
+                        {% for cf in contas_financeiras %}
+                            <option value="{{ cf.id }}">
+                                {{ cf.empresa.razao_social }} – {{ cf.banco.nome }} {{ cf.agencia }}/{{ cf.conta }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div class="space-y-1">
+                    <label class="block text-sm font-medium text-slate-700">Valor (R$)</label>
+                    <input type="text" name="valor" id="modal_valor" required
+                           class="w-full rounded-md border-slate-300 shadow-sm focus:border-sky-500 focus:ring-sky-500 text-sm"
+                           placeholder="0,00">
+                </div>
+                <div class="space-y-1">
+                    <label class="block text-sm font-medium text-slate-700">Data</label>
+                    <input type="date" name="data" id="transferencia_data" required value="{{ hoje_iso }}"
+                           class="w-full rounded-md border-slate-300 shadow-sm focus:border-sky-500 focus:ring-sky-500 text-sm">
+                </div>
+            </div>
+            <div class="flex justify-end gap-2 pt-2">
+                <button type="button" id="btn-limpar-transferencia"
+                        class="px-4 py-2 rounded-md border border-slate-300 text-slate-700 text-sm font-medium hover:bg-slate-50">
+                    Limpar
+                </button>
+                <button type="submit"
+                        class="px-4 py-2 rounded-md bg-sky-600 text-white text-sm font-medium hover:bg-sky-700">
+                    Realizar transferência
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+(function() {
+    var modal = document.getElementById("modal-nova-transferencia");
+    var btnAbrir = document.getElementById("btn-nova-transferencia");
+    var btnFechar = document.getElementById("modal-transferencia-fechar");
+    var backdrop = document.getElementById("modal-transferencia-backdrop");
+
+    function abrirModal() {
+        if (modal) modal.classList.remove("hidden");
+    }
+    function fecharModal() {
+        if (modal) modal.classList.add("hidden");
+    }
+
+    var urlLista = "{% url 'financeiro-transferencias' %}";
+    var urlVerificarIncluir = "{% url 'financeiro-transferencias-verificar-incluir' %}";
+    if (btnAbrir) {
+        btnAbrir.addEventListener("click", function() {
+            fetch(urlVerificarIncluir)
+                .then(function(r) { return r.json(); })
+                .then(function(data) {
+                    if (!data.pode_incluir) {
+                        window.location.href = urlLista + "?erro_novo=permissao";
+                        return;
+                    }
+                    abrirModal();
+                })
+                .catch(function() {
+                    window.location.href = urlLista + "?erro_novo=erro";
+                });
+        });
+    }
+    if (btnFechar) btnFechar.addEventListener("click", fecharModal);
+    if (backdrop) backdrop.addEventListener("click", fecharModal);
+
+    var origem = document.getElementById("conta_origem_id");
+    var destino = document.getElementById("conta_destino_id");
+    if (!origem || !destino) return;
+
+    function sincronizarDestino() {
+        var valorOrigem = (origem.value || "").trim();
+        for (var i = 0; i < destino.options.length; i++) {
+            var opt = destino.options[i];
+            if (opt.value === "") {
+                opt.disabled = false;
+                continue;
+            }
+            opt.disabled = (opt.value === valorOrigem);
+        }
+        if (destino.value === valorOrigem && valorOrigem) {
+            destino.value = "";
+        }
+    }
+
+    function sincronizarOrigem() {
+        var valorDestino = (destino.value || "").trim();
+        for (var i = 0; i < origem.options.length; i++) {
+            var opt = origem.options[i];
+            if (opt.value === "") {
+                opt.disabled = false;
+                continue;
+            }
+            opt.disabled = (opt.value === valorDestino);
+        }
+        if (origem.value === valorDestino && valorDestino) {
+            origem.value = "";
+        }
+    }
+
+    origem.addEventListener("change", sincronizarDestino);
+    destino.addEventListener("change", sincronizarOrigem);
+    sincronizarDestino();
+    sincronizarOrigem();
+
+    var btnLimpar = document.getElementById("btn-limpar-transferencia");
+    var inputValor = document.getElementById("modal_valor");
+    var inputData = document.getElementById("transferencia_data");
+    if (btnLimpar) {
+        btnLimpar.addEventListener("click", function() {
+            if (origem) origem.value = "";
+            if (destino) destino.value = "";
+            if (inputValor) inputValor.value = "";
+            if (inputData) inputData.value = "{{ hoje_iso }}";
+            sincronizarDestino();
+            sincronizarOrigem();
+        });
+    }
+})();
+</script>
+{% endblock %}

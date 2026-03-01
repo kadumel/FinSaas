@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard · FinSaas{% endblock %}
+
+{% block content %}
+<div class="flex flex-col gap-6">
+    <div>
+        <h1 class="text-2xl font-semibold text-slate-800">Dashboard financeiro</h1>
+        <p class="text-sm text-slate-500 mt-1">
+            Visão geral de saldos, contas a pagar e receber.
+        </p>
+    </div>
+
+    <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div class="bg-white rounded-xl shadow-sm p-4 border border-slate-100">
+            <div class="text-xs font-medium text-slate-500 uppercase tracking-wide">Saldo consolidado</div>
+            <div class="mt-2 text-2xl font-semibold text-emerald-600">
+                R$ 0,00
+            </div>
+            <p class="mt-1 text-xs text-slate-400">Soma dos saldos das contas financeiras.</p>
+        </div>
+
+        <div class="bg-white rounded-xl shadow-sm p-4 border border-slate-100">
+            <div class="text-xs font-medium text-slate-500 uppercase tracking-wide">Contas a pagar (30 dias)</div>
+            <div class="mt-2 text-2xl font-semibold text-rose-600">
+                R$ 0,00
+            </div>
+            <p class="mt-1 text-xs text-slate-400">Total de vencimentos de saída no período.</p>
+        </div>
+
+        <div class="bg-white rounded-xl shadow-sm p-4 border border-slate-100">
+            <div class="text-xs font-medium text-slate-500 uppercase tracking-wide">Contas a receber (30 dias)</div>
+            <div class="mt-2 text-2xl font-semibold text-sky-600">
+                R$ 0,00
+            </div>
+            <p class="mt-1 text-xs text-slate-400">Total de vencimentos de entrada no período.</p>
+        </div>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <div class="bg-white rounded-xl shadow-sm p-4 border border-slate-100">
+            <h2 class="text-sm font-semibold text-slate-700 mb-3">Próximos vencimentos a pagar</h2>
+            <p class="text-sm text-slate-400">Em breve aqui entram os vencimentos de <strong>FIN_CONTA_PAGAR_VENC</strong>.</p>
+        </div>
+
+        <div class="bg-white rounded-xl shadow-sm p-4 border border-slate-100">
+            <h2 class="text-sm font-semibold text-slate-700 mb-3">Próximos vencimentos a receber</h2>
+            <p class="text-sm text-slate-400">Em breve aqui entram os vencimentos de <strong>FIN_CONTA_RECEBER_VENC</strong>.</p>
+        </div>
+    </div>
+</div>
+{% endblock %}
+

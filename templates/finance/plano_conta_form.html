@@ -1,0 +1,199 @@
+{% extends "base.html" %}
+
+{% block title %}{% if conta %}Editar conta do plano{% else %}Nova conta do plano{% endif %} · Cadastros{% endblock %}
+
+{% block content %}
+<div class="max-w-xl mx-auto">
+    <h1 class="text-2xl font-semibold text-slate-800 mb-2">
+        {% if conta %}Editar conta do plano{% else %}Nova conta do plano{% endif %}
+    </h1>
+    <p class="text-sm text-slate-500 mb-4">Cadastro de contas contábeis para a empresa matriz selecionada.</p>
+
+    <form method="post" class="bg-white rounded-xl shadow-sm border border-slate-200 p-6 space-y-4">
+        {% csrf_token %}
+
+        <div class="space-y-1">
+            <label class="block text-sm font-medium text-slate-700">Conta pai (opcional)</label>
+            <select name="conta_pai_id" id="id_conta_pai"
+                    class="w-full rounded-md border-slate-300 shadow-sm focus:border-sky-500 focus:ring-sky-500">
+                <option value="">Nenhuma (raiz)</option>
+                {% for c in contas_disponiveis %}
+                    <option value="{{ c.id }}"
+                            data-sugestao="{{ c.sugestao_codigo|default_if_none:'' }}"
+                            {% if form.conta_pai_id %}
+                                {% if form.conta_pai_id == c.id %}selected{% endif %}
+                            {% elif conta and conta.conta_pai_id == c.id %}
+                                selected
+                            {% endif %}>
+                        {{ c.codigo }} - {{ c.descricao }}
+                    </option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div class="space-y-1">
+            <label class="block text-sm font-medium text-slate-700">Código</label>
+            <input id="id_codigo" type="text" name="codigo" required
+                   value="{{ form.codigo|default_if_none:'' }}"
+                   class="w-full rounded-md border-slate-300 shadow-sm focus:border-sky-500 focus:ring-sky-500">
+            {% if mascara_codigo %}
+                <p class="text-xs text-slate-500">Máscara: {{ mascara_codigo }}</p>
+            {% endif %}
+        </div>
+
+        <div class="space-y-1">
+            <label class="block text-sm font-medium text-slate-700">Descrição</label>
+            <input type="text" name="descricao" required
+                   value="{{ form.descricao|default_if_none:'' }}"
+                   class="w-full rounded-md border-slate-300 shadow-sm focus:border-sky-500 focus:ring-sky-500">
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-4 gap-4">
+            <div class="space-y-1">
+                <label class="block text-sm font-medium text-slate-700">Tipo</label>
+                <select name="tipo" id="id_tipo"
+                        class="w-full rounded-md border-slate-300 shadow-sm focus:border-sky-500 focus:ring-sky-500">
+                    <option value="S" {% if form.tipo == 'S' %}selected{% endif %}>Sintético</option>
+                    <option value="A" {% if form.tipo == 'A' %}selected{% endif %}>Analítico</option>
+                </select>
+            </div>
+            <div class="space-y-1">
+                <label class="block text-sm font-medium text-slate-700">Natureza</label>
+                <select name="natureza"
+                        class="w-full rounded-md border-slate-300 shadow-sm focus:border-sky-500 focus:ring-sky-500">
+                    <option value="R" {% if form.natureza == 'R' %}selected{% endif %}>Receita</option>
+                    <option value="D" {% if form.natureza == 'D' %}selected{% endif %}>Despesa</option>
+                </select>
+            </div>
+            <div class="space-y-1">
+                <label class="block text-sm font-medium text-slate-700">Nível</label>
+                <input type="number" name="nivel" id="id_nivel" min="1" step="1" disabled
+                       value="{{ form.nivel|default_if_none:'1' }}"
+                       class="w-full rounded-md border-slate-300 bg-slate-50 text-slate-700 shadow-sm focus:border-sky-500 focus:ring-sky-500">
+            </div>
+            <div class="space-y-1">
+                <label class="block text-sm font-medium text-slate-700">Conta contábil</label>
+                <input type="text" name="conta_contabil" id="id_conta_contabil" maxlength="30"
+                       value="{{ form.conta_contabil|default_if_none:'' }}"
+                       class="w-full rounded-md border-slate-300 shadow-sm focus:border-sky-500 focus:ring-sky-500">
+            </div>
+        </div>
+
+        {% if not conta %}
+        <div class="flex items-center gap-2 pt-2">
+            <input type="checkbox" name="continuar" id="id_continuar" value="1"
+                   {% if request.GET.continuar %}checked{% endif %}
+                   class="rounded border-slate-300 text-sky-600 focus:ring-sky-500">
+            <label for="id_continuar" class="text-sm text-slate-700">Continuar (após salvar, limpar formulário para inserir outro)</label>
+        </div>
+        {% endif %}
+        <div class="flex justify-end gap-2 pt-4">
+            <a href="{% url 'cadastros-plano-conta' %}"
+               class="px-4 py-2 text-sm rounded-md border border-slate-300 text-slate-700 hover:bg-slate-50">
+                Cancelar
+            </a>
+            <button type="submit"
+                    class="px-4 py-2 text-sm rounded-md bg-sky-600 text-white font-medium hover:bg-sky-700">
+                Salvar
+            </button>
+        </div>
+    </form>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+{{ block.super }}
+<script>
+    (function () {
+        const selectPai = document.getElementById("id_conta_pai");
+        const inputCodigo = document.getElementById("id_codigo");
+        const inputNivel = document.getElementById("id_nivel");
+        const selectTipo = document.getElementById("id_tipo");
+        const inputContaContabil = document.getElementById("id_conta_contabil");
+        const mascaraCodigo = "{{ mascara_codigo|default_if_none:''|escapejs }}";
+        const sugestaoRoot = "{{ sugestao_root|default_if_none:''|escapejs }}";
+
+        function aplicarMascaraCodigo() {
+            if (!mascaraCodigo || !inputCodigo) return;
+            const digits = (inputCodigo.value || "").replace(/\D/g, "");
+            let resultado = "";
+            let digIndex = 0;
+            for (let i = 0; i < mascaraCodigo.length; i++) {
+                const m = mascaraCodigo[i];
+                if (m >= "0" && m <= "9") {
+                    if (digIndex < digits.length) {
+                        resultado += digits[digIndex++];
+                    } else {
+                        break;
+                    }
+                } else {
+                    if (digIndex === 0 || digIndex >= digits.length) {
+                        break;
+                    }
+                    resultado += m;
+                }
+            }
+            inputCodigo.value = resultado;
+            atualizarNivel();
+        }
+
+        function atualizarNivel() {
+            if (!inputNivel || !inputCodigo) return;
+            const code = (inputCodigo.value || "").trim();
+            if (!code) {
+                inputNivel.value = 1;
+                return;
+            }
+            const partes = code.split(".").filter(function (p) { return p.length > 0; });
+            inputNivel.value = partes.length || 1;
+        }
+
+        function aplicarSugestao() {
+            if (!inputCodigo) return;
+            const val = selectPai ? selectPai.value : "";
+            let sug = "";
+            if (!val) {
+                sug = sugestaoRoot;
+            } else if (selectPai) {
+                const opt = selectPai.options[selectPai.selectedIndex];
+                if (opt) sug = opt.getAttribute("data-sugestao") || "";
+            }
+            if (sug) {
+                inputCodigo.value = sug;
+                aplicarMascaraCodigo();
+            }
+        }
+
+        function atualizarContaContabil() {
+            if (!selectTipo || !inputContaContabil) return;
+            if (selectTipo.value === "S") {
+                inputContaContabil.value = "";
+                inputContaContabil.disabled = true;
+                inputContaContabil.classList.add("bg-slate-50", "text-slate-500");
+            } else {
+                inputContaContabil.disabled = false;
+                inputContaContabil.classList.remove("bg-slate-50", "text-slate-500");
+            }
+        }
+
+        if (inputCodigo) {
+            inputCodigo.addEventListener("input", aplicarMascaraCodigo);
+            atualizarNivel();
+        }
+        if (selectPai) {
+            selectPai.addEventListener("change", aplicarSugestao);
+        }
+        if (selectTipo) {
+            selectTipo.addEventListener("change", atualizarContaContabil);
+            atualizarContaContabil();
+        }
+
+        {% if not conta %}
+        if (inputCodigo && !inputCodigo.value) {
+            aplicarSugestao();
+        }
+        {% endif %}
+    })();
+</script>
+{% endblock %}
+

@@ -1,0 +1,103 @@
+{% extends "tenant/base_admin.html" %}
+
+{% block title %}
+    {% if usuario %}
+        Editar usuário · {{ usuario.nome }}
+    {% else %}
+        Novo usuário
+    {% endif %}
+{% endblock %}
+
+{% block admin_content %}
+<div class="max-w-xl mx-auto">
+    <h1 class="text-2xl font-semibold text-slate-800 mb-2">
+        {% if usuario %}Editar usuário{% else %}Novo usuário{% endif %}
+    </h1>
+    <p class="text-sm text-slate-500 mb-4">
+        Conta: {{ tenant.nome_fantasia|default:tenant.razao_social }}
+    </p>
+
+    {% if errors %}
+        <div class="mb-4 rounded-md border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-800">
+            <ul class="list-disc list-inside space-y-1">
+                {% for error in errors %}
+                    <li>{{ error }}</li>
+                {% endfor %}
+            </ul>
+        </div>
+    {% endif %}
+
+    <form method="post" class="bg-white rounded-xl shadow-sm border border-slate-200 p-6 space-y-4">
+        {% csrf_token %}
+
+        <div class="space-y-1">
+            <label class="block text-sm font-medium text-slate-700">Nome</label>
+            <input type="text" name="nome" required
+                   value="{{ form.nome|default_if_none:'' }}"
+                   class="w-full rounded-md border-slate-300 shadow-sm focus:border-sky-500 focus:ring-sky-500">
+        </div>
+
+        <div class="space-y-1">
+            <label class="block text-sm font-medium text-slate-700">E-mail</label>
+            <input type="email" name="email" required
+                   value="{{ form.email|default_if_none:'' }}"
+                   class="w-full rounded-md border-slate-300 shadow-sm focus:border-sky-500 focus:ring-sky-500">
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div class="space-y-1">
+                <label class="block text-sm font-medium text-slate-700">
+                    {% if usuario %}Nova senha{% else %}Senha{% endif %}
+                </label>
+                <input type="password" name="password1"
+                       class="w-full rounded-md border-slate-300 shadow-sm focus:border-sky-500 focus:ring-sky-500">
+            </div>
+            <div class="space-y-1">
+                <label class="block text-sm font-medium text-slate-700">
+                    Confirmar senha
+                </label>
+                <input type="password" name="password2"
+                       class="w-full rounded-md border-slate-300 shadow-sm focus:border-sky-500 focus:ring-sky-500">
+            </div>
+        </div>
+
+        <div class="flex items-center gap-4 pt-2">
+            <label class="inline-flex items-center gap-2 text-sm text-slate-700">
+                <input type="checkbox" name="ativo" value="1"
+                       {% if form.ativo %}checked{% endif %}
+                       class="rounded border-slate-300 text-sky-600 focus:ring-sky-500">
+                Usuário ativo
+            </label>
+        </div>
+
+        {% if perfis %}
+        <div class="space-y-2 pt-2 border-t border-slate-100">
+            <label class="block text-sm font-medium text-slate-700">Perfis</label>
+            <p class="text-xs text-slate-500">Selecione os perfis deste usuário na conta.</p>
+            <div class="flex flex-wrap gap-3">
+                {% for perfil in perfis %}
+                    <label class="inline-flex items-center gap-2 text-sm text-slate-700">
+                        <input type="checkbox" name="perfis" value="{{ perfil.id }}"
+                               {% if perfil.id in perfis_selecionados %}checked{% endif %}
+                               class="rounded border-slate-300 text-sky-600 focus:ring-sky-500">
+                        {{ perfil.nome }}
+                    </label>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+
+        <div class="flex justify-end gap-2 pt-4">
+            <a href="{% url 'tenant-usuarios-list' %}"
+               class="px-4 py-2 text-sm rounded-md border border-slate-300 text-slate-700 hover:bg-slate-50">
+                Cancelar
+            </a>
+            <button type="submit"
+                    class="px-4 py-2 text-sm rounded-md bg-sky-600 text-white font-medium hover:bg-sky-700">
+                Salvar
+            </button>
+        </div>
+    </form>
+</div>
+{% endblock %}
+

@@ -1,0 +1,82 @@
+{% extends "tenant/base_admin.html" %}
+
+{% block title %}Empresas cadastradas{% endblock %}
+
+{% block admin_content %}
+<div class="flex flex-col gap-4">
+    <div class="flex items-center justify-between">
+        <div>
+            <h1 class="text-2xl font-semibold text-slate-800">Empresas cadastradas</h1>
+            <p class="text-sm text-slate-500">
+                Gestão de matrizes e filiais desta conta.
+            </p>
+        </div>
+        <a href="{% url 'tenant-empresas-create' %}"
+           class="inline-flex items-center rounded-md bg-sky-600 px-4 py-2 text-sm font-medium text-white hover:bg-sky-700">
+            Nova empresa
+        </a>
+    </div>
+
+    <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+        <table class="min-w-full text-sm">
+            <thead class="bg-slate-50 text-slate-600 uppercase text-xs tracking-wide text-center">
+                <tr>
+                    <th class="px-4 py-2">Razão social</th>
+                    <th class="px-4 py-2">CNPJ</th>
+                    <th class="px-4 py-2">Tipo</th>
+                    <th class="px-4 py-2">Matriz</th>
+                    <th class="px-4 py-2">Ativa</th>
+                    <th class="px-4 py-2">Ações</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-100">
+                {% for empresa in empresas %}
+                    <tr class="hover:bg-slate-50">
+                        <td class="px-4 py-2">{{ empresa.razao_social }}</td>
+                        <td class="px-4 py-2 text-slate-600">{{ empresa.cnpj }}</td>
+                        <td class="px-4 py-2 text-slate-600">{{ empresa.get_tipo_display }}</td>
+                        <td class="px-4 py-2 text-slate-600">
+                            {% if empresa.empresa_matriz %}
+                                {{ empresa.empresa_matriz.razao_social }}
+                            {% else %}
+                                -
+                            {% endif %}
+                        </td>
+                        <td class="px-4 py-2 text-center">
+                            {% if empresa.ativo %}
+                                <span class="inline-flex px-2 py-1 text-xs rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
+                                    Sim
+                                </span>
+                            {% else %}
+                                <span class="inline-flex px-2 py-1 text-xs rounded-full bg-slate-50 text-slate-600 border border-slate-200">
+                                    Não
+                                </span>
+                            {% endif %}
+                        </td>
+                        <td class="px-4 py-2 text-right space-x-2">
+                            <a href="{% url 'tenant-empresas-edit' empresa.id %}"
+                               class="inline-flex items-center rounded-md border border-slate-300 px-2 py-1 text-xs text-slate-700 hover:bg-slate-50"
+                               title="Editar empresa">
+                                ✏️
+                            </a>
+                            <a href="{% url 'tenant-empresas-delete' empresa.id %}"
+                               class="inline-flex items-center rounded-md border border-rose-300 px-2 py-1 text-xs text-rose-700 hover:bg-rose-50"
+                               onclick="return confirm('Deseja realmente excluir esta empresa?');"
+                               title="Excluir empresa">
+                                🗑️
+                            </a>
+                        </td>
+                    </tr>
+                {% empty %}
+                    <tr>
+                        <td colspan="6" class="px-4 py-4 text-center text-slate-400 text-sm">
+                            Nenhuma empresa cadastrada ainda.
+                        </td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
+

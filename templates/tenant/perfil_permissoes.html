@@ -1,0 +1,94 @@
+{% extends "tenant/base_admin.html" %}
+
+{% block title %}Permissões por empresa · {{ perfil.nome }}{% endblock %}
+
+{% block admin_content %}
+<div class="flex flex-col gap-4">
+    <div class="flex items-center justify-between">
+        <div>
+            <h1 class="text-2xl font-semibold text-slate-800">Permissões por empresa</h1>
+            <p class="text-sm text-slate-500">
+                Perfil: <strong>{{ perfil.nome }}</strong>
+            </p>
+        </div>
+        <a href="{% url 'tenant-perfis-list' %}"
+           class="px-4 py-2 text-sm rounded-md border border-slate-300 text-slate-700 hover:bg-slate-50">
+            Voltar aos perfis
+        </a>
+    </div>
+
+    <form method="post" class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+        {% csrf_token %}
+        <div class="overflow-x-auto">
+            <table class="min-w-full text-sm">
+                <thead class="bg-slate-50 text-slate-600 uppercase text-xs tracking-wide">
+                    <tr>
+                        <th class="px-4 py-2 text-left">Empresa</th>
+                        <th class="px-4 py-2 text-center">Visualizar</th>
+                        <th class="px-4 py-2 text-center">Incluir</th>
+                        <th class="px-4 py-2 text-center">Editar</th>
+                        <th class="px-4 py-2 text-center">Excluir</th>
+                        <th class="px-4 py-2 text-center">Aprovar</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100">
+                    {% for item in empresas_com_perm %}
+                        <tr class="hover:bg-slate-50">
+                            <td class="px-4 py-2 font-medium text-slate-800">
+                                {{ item.empresa.razao_social }}
+                                <span class="text-xs text-slate-500">({{ item.empresa.get_tipo_display }})</span>
+                            </td>
+                            <td class="px-4 py-2 text-center">
+                                <input type="checkbox" name="viz_{{ item.empresa.id }}" value="1"
+                                       {% if item.perm and item.perm.pode_visualizar %}checked{% endif %}
+                                       class="rounded border-slate-300 text-sky-600 focus:ring-sky-500">
+                            </td>
+                            <td class="px-4 py-2 text-center">
+                                <input type="checkbox" name="inc_{{ item.empresa.id }}" value="1"
+                                       {% if item.perm and item.perm.pode_incluir %}checked{% endif %}
+                                       class="rounded border-slate-300 text-sky-600 focus:ring-sky-500">
+                            </td>
+                            <td class="px-4 py-2 text-center">
+                                <input type="checkbox" name="edit_{{ item.empresa.id }}" value="1"
+                                       {% if item.perm and item.perm.pode_editar %}checked{% endif %}
+                                       class="rounded border-slate-300 text-sky-600 focus:ring-sky-500">
+                            </td>
+                            <td class="px-4 py-2 text-center">
+                                <input type="checkbox" name="exc_{{ item.empresa.id }}" value="1"
+                                       {% if item.perm and item.perm.pode_excluir %}checked{% endif %}
+                                       class="rounded border-slate-300 text-sky-600 focus:ring-sky-500">
+                            </td>
+                            <td class="px-4 py-2 text-center">
+                                <input type="checkbox" name="apr_{{ item.empresa.id }}" value="1"
+                                       {% if item.perm and item.perm.pode_aprovar %}checked{% endif %}
+                                       class="rounded border-slate-300 text-sky-600 focus:ring-sky-500">
+                            </td>
+                        </tr>
+                    {% empty %}
+                        <tr>
+                            <td colspan="6" class="px-4 py-4 text-center text-slate-400 text-sm">
+                                Nenhuma empresa cadastrada. Cadastre empresas para definir permissões.
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% if empresas_com_perm %}
+        <p class="text-xs text-slate-500 px-4 py-2 border-t border-slate-100">
+            Marque as permissões que este perfil terá em cada empresa.
+        </p>
+        <div class="flex justify-end gap-2 p-4 border-t border-slate-100">
+            <a href="{% url 'tenant-perfis-list' %}"
+               class="px-4 py-2 text-sm rounded-md border border-slate-300 text-slate-700 hover:bg-slate-50">
+                Cancelar
+            </a>
+            <button type="submit"
+                    class="px-4 py-2 text-sm rounded-md bg-sky-600 text-white font-medium hover:bg-sky-700">
+                Salvar permissões
+            </button>
+        </div>
+        {% endif %}
+    </form>
+</div>
+{% endblock %}

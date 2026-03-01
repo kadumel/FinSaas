@@ -1,0 +1,156 @@
+{% extends "base.html" %}
+
+{% block title %}Tipos de Documento · Cadastros{% endblock %}
+
+{% block content %}
+<div class="flex flex-col gap-4">
+    <div class="flex items-center justify-between">
+        <div>
+            <h1 class="text-2xl font-semibold text-slate-800">Tipos de Documento</h1>
+            <p class="text-sm text-slate-500">Cadastro de tipos de documento por empresa.</p>
+        </div>
+        <a href="{% url 'cadastros-tipos-documento-novo' %}"
+           class="inline-flex items-center rounded-md bg-sky-600 px-4 py-2 text-sm font-medium text-white hover:bg-sky-700">
+            Novo tipo de documento
+        </a>
+    </div>
+
+    <form method="get" action="{% url 'cadastros-tipos-documento' %}"
+          class="bg-white rounded-xl shadow-sm border border-slate-200 p-4 flex flex-wrap items-end gap-4">
+        <div class="flex-1 min-w-[180px]">
+            <label class="block text-xs font-medium text-slate-500 mb-1">Nome</label>
+            <input type="text" name="nome" value="{{ filtros.nome }}"
+                   placeholder="Buscar por nome"
+                   class="w-full rounded-md border-slate-300 text-sm shadow-sm focus:border-sky-500 focus:ring-sky-500">
+        </div>
+        <button type="submit"
+                class="px-4 py-2 rounded-md bg-slate-700 text-white text-sm font-medium hover:bg-slate-800">
+            Filtrar
+        </button>
+        <a href="{% url 'cadastros-tipos-documento' %}"
+           class="px-4 py-2 rounded-md border border-slate-300 text-slate-700 text-sm hover:bg-slate-50">
+            Limpar
+        </a>
+    </form>
+
+    <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+        <table class="min-w-full text-sm">
+            <thead class="bg-slate-50 text-slate-600 uppercase text-xs tracking-wide text-center">
+                <tr>
+                    <th class="px-4 py-2 text-left">Empresa</th>
+                    <th class="px-4 py-2 text-left">Nome</th>
+                    <th class="px-4 py-2">Ações</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-100">
+                {% for t in tipos %}
+                    <tr class="hover:bg-slate-50">
+                        <td class="px-4 py-2 text-slate-700">
+                            {{ t.empresa.razao_social }}
+                        </td>
+                        <td class="px-4 py-2 text-slate-800">
+                            {{ t.nome }}
+                        </td>
+                        <td class="px-4 py-2 text-right space-x-2">
+                            <a href="{% url 'cadastros-tipos-documento-editar' t.id %}"
+                               class="inline-flex items-center rounded-md border border-slate-300 px-2 py-1 text-xs text-slate-700 hover:bg-slate-50"
+                               title="Editar">
+                                ✏️
+                            </a>
+                            <button type="button"
+                                    class="btn-excluir-tipo inline-flex items-center rounded-md border border-rose-300 px-2 py-1 text-xs text-rose-700 hover:bg-rose-50"
+                                    title="Excluir"
+                                    data-tipo-id="{{ t.id }}"
+                                    data-tipo-nome="{{ t.nome|escape }}">
+                                🗑️
+                            </button>
+                        </td>
+                    </tr>
+                {% empty %}
+                    <tr>
+                        <td colspan="3" class="px-4 py-8 text-center text-slate-400 text-sm">
+                            Nenhum tipo de documento encontrado. Use os filtros ou cadastre um novo.
+                        </td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+{# Modal confirmar exclusão de tipo de documento #}
+<div id="modal-excluir-tipo" class="fixed inset-0 z-50 hidden" aria-hidden="true">
+    <div class="fixed inset-0 bg-black/50" id="modal-excluir-tipo-backdrop"></div>
+    <div class="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-md bg-white rounded-xl shadow-xl border border-slate-200 p-6">
+        <div class="flex justify-between items-start mb-4">
+            <h2 class="text-lg font-semibold text-slate-800">Excluir tipo de documento</h2>
+            <button type="button" id="modal-excluir-tipo-fechar" class="text-slate-400 hover:text-slate-600 text-xl leading-none">✕</button>
+        </div>
+        <p class="text-sm text-slate-600 mb-2">
+            Deseja realmente excluir o tipo de documento <strong id="modal-excluir-tipo-nome" class="text-slate-800"></strong>?
+        </p>
+        <p class="text-xs text-slate-500 mb-6">
+            Esta ação não pode ser desfeita. Não será possível excluir se existirem contas a pagar ou a receber vinculadas.
+        </p>
+        <div class="flex justify-end gap-2">
+            <button type="button" id="modal-excluir-tipo-cancelar"
+                    class="px-4 py-2 rounded-md border border-slate-300 text-slate-700 text-sm font-medium hover:bg-slate-50">
+                Cancelar
+            </button>
+            <a href="#" id="modal-excluir-tipo-confirmar"
+               class="px-4 py-2 rounded-md bg-rose-600 text-white text-sm font-medium hover:bg-rose-700">
+                Excluir
+            </a>
+        </div>
+    </div>
+</div>
+
+<script>
+(function() {
+    var modal = document.getElementById("modal-excluir-tipo");
+    if (!modal) return;
+    var nomeEl = document.getElementById("modal-excluir-tipo-nome");
+    var linkConfirmar = document.getElementById("modal-excluir-tipo-confirmar");
+    var btnFechar = document.getElementById("modal-excluir-tipo-fechar");
+    var btnCancelar = document.getElementById("modal-excluir-tipo-cancelar");
+    var backdrop = document.getElementById("modal-excluir-tipo-backdrop");
+    var urlLista = "{% url 'cadastros-tipos-documento' %}";
+    var urlVerificarExcluir = "{% url 'cadastros-tipos-documento-verificar-excluir' %}";
+    var urlExcluirTemplate = "{% url 'cadastros-tipos-documento-excluir' 0 %}";
+
+    function abrirModal(tipoId, tipoNome) {
+        if (nomeEl) nomeEl.textContent = tipoNome || "—";
+        if (linkConfirmar) linkConfirmar.href = urlExcluirTemplate.replace(/\/0\//, "/" + tipoId + "/");
+        modal.classList.remove("hidden");
+    }
+    function fecharModal() {
+        modal.classList.add("hidden");
+    }
+
+    document.addEventListener("click", function(e) {
+        var btn = e.target.closest(".btn-excluir-tipo");
+        if (!btn) return;
+        e.preventDefault();
+        var id = btn.getAttribute("data-tipo-id");
+        var nome = btn.getAttribute("data-tipo-nome") || "";
+        if (!id) return;
+        fetch(urlVerificarExcluir + "?tipo_id=" + encodeURIComponent(id))
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                if (!data.pode_excluir) {
+                    window.location.href = urlLista + "?erro_excluir=permissao";
+                    return;
+                }
+                abrirModal(id, nome);
+            })
+            .catch(function() {
+                window.location.href = urlLista + "?erro_excluir=erro";
+            });
+    });
+    if (btnFechar) btnFechar.addEventListener("click", fecharModal);
+    if (btnCancelar) btnCancelar.addEventListener("click", fecharModal);
+    if (backdrop) backdrop.addEventListener("click", fecharModal);
+})();
+</script>
+{% endblock %}
+

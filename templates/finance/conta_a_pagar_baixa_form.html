@@ -1,0 +1,95 @@
+{% extends "base.html" %}
+
+{% block title %}Editar baixa · Contas a Pagar{% endblock %}
+
+{% block content %}
+<div class="max-w-2xl mx-auto">
+    <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6 space-y-4">
+        <h1 class="text-xl font-semibold text-slate-800">Editar baixa de conta a pagar</h1>
+        <p class="text-sm text-slate-500">
+            Ajuste a conta financeira, data de pagamento, valor pago, juros e multa desta baixa.
+        </p>
+
+        <dl class="border-t border-slate-100 pt-4 space-y-2 text-sm">
+            <div class="flex justify-between gap-4">
+                <dt class="text-slate-500">Descrição</dt>
+                <dd class="font-medium text-slate-800">{{ conta.descricao }}</dd>
+            </div>
+            <div class="flex justify-between gap-4">
+                <dt class="text-slate-500">Fornecedor</dt>
+                <dd class="font-medium text-slate-800">
+                    {{ conta.pessoa.nome_razao|default:"—" }}
+                </dd>
+            </div>
+            <div class="flex justify-between gap-4">
+                <dt class="text-slate-500">Vencimento</dt>
+                <dd class="font-medium text-slate-800">
+                    {{ baixa.conta_pagar_venc.data_vencimento|date:"d/m/Y" }}
+                    – R$ {{ baixa.conta_pagar_venc.valor|floatformat:2 }}
+                </dd>
+            </div>
+        </dl>
+
+        <form method="post" class="space-y-4 pt-2">
+            {% csrf_token %}
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div class="space-y-1">
+                    <label class="block text-sm font-medium text-slate-700">Conta financeira</label>
+                    <select name="conta_financeira_id"
+                            class="w-full rounded-md border-slate-300 shadow-sm focus:border-sky-500 focus:ring-sky-500 text-sm">
+                        <option value="">Selecione...</option>
+                        {% for cf in contas_financeiras %}
+                            <option value="{{ cf.id }}" {% if form.conta_financeira_id|stringformat:"s" == cf.id|stringformat:"s" %}selected{% endif %}>
+                                {{ cf.banco.nome }} – {{ cf.agencia }}/{{ cf.conta }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="space-y-1">
+                    <label class="block text-sm font-medium text-slate-700">Data de pagamento</label>
+                    <input type="date" name="data_pagamento"
+                           value="{{ form.data_pagamento|default_if_none:'' }}"
+                           class="w-full rounded-md border-slate-300 shadow-sm focus:border-sky-500 focus:ring-sky-500 text-sm">
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div class="space-y-1">
+                    <label class="block text-sm font-medium text-slate-700">Valor pago (R$)</label>
+                    <input type="text" name="valor_pago"
+                           value="{{ form.valor_pago|default_if_none:'' }}"
+                           class="w-full rounded-md border-slate-300 shadow-sm focus:border-sky-500 focus:ring-sky-500 text-sm"
+                           placeholder="0,00">
+                </div>
+                <div class="space-y-1">
+                    <label class="block text-sm font-medium text-slate-700">Juros (R$)</label>
+                    <input type="text" name="juros"
+                           value="{{ form.juros|default_if_none:'' }}"
+                           class="w-full rounded-md border-slate-300 shadow-sm focus:border-sky-500 focus:ring-sky-500 text-sm"
+                           placeholder="0,00">
+                </div>
+                <div class="space-y-1">
+                    <label class="block text-sm font-medium text-slate-700">Multa (R$)</label>
+                    <input type="text" name="multa"
+                           value="{{ form.multa|default_if_none:'' }}"
+                           class="w-full rounded-md border-slate-300 shadow-sm focus:border-sky-500 focus:ring-sky-500 text-sm"
+                           placeholder="0,00">
+                </div>
+            </div>
+
+            <div class="flex justify-end gap-2 pt-4">
+                <a href="{% url 'movimentos-contas-a-pagar-baixa' %}"
+                   class="px-4 py-2 text-sm rounded-md border border-slate-300 text-slate-700 hover:bg-slate-50">
+                    Cancelar
+                </a>
+                <button type="submit"
+                        class="px-4 py-2 text-sm rounded-md bg-sky-600 text-white font-medium hover:bg-sky-700">
+                    Salvar
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+

@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+
+{% block title %}Entrar · FinSaas{% endblock %}
+
+{% block content %}
+<div class="min-h-[80vh] flex items-center justify-center">
+    <div class="w-full max-w-md bg-white shadow-lg rounded-2xl p-8">
+        <div class="flex flex-col items-center mb-6">
+            <div class="flex h-14 w-14 items-center justify-center rounded-2xl bg-sky-100 text-sky-600 mb-3 shadow-inner">
+                <!-- Ícone financeiro (gráfico de barras) -->
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M4 20h16" />
+                    <rect x="5" y="11" width="3" height="6" rx="0.8" />
+                    <rect x="10.5" y="8" width="3" height="9" rx="0.8" />
+                    <rect x="16" y="5" width="3" height="12" rx="0.8" />
+                </svg>
+            </div>
+            <h1 class="text-2xl font-semibold text-slate-800 text-center">FinSaas</h1>
+            <p class="mt-1 text-sm text-slate-500 text-center">Acesse seu painel financeiro</p>
+        </div>
+
+        {% if form.errors %}
+            <div class="mb-4 rounded-md bg-red-50 border border-red-200 px-3 py-2 text-sm text-red-700">
+                Verifique seu e-mail e senha.
+            </div>
+        {% endif %}
+
+        <form method="post" class="space-y-4">
+            {% csrf_token %}
+
+            <div class="space-y-1">
+                <label class="block text-sm font-medium text-slate-700">E-mail</label>
+                <input type="email" name="username" autofocus required
+                       class="w-full rounded-md border-slate-300 shadow-sm focus:border-sky-500 focus:ring-sky-500">
+            </div>
+
+            <div class="space-y-1">
+                <label class="block text-sm font-medium text-slate-700">Senha</label>
+                <input type="password" name="password" required
+                       class="w-full rounded-md border-slate-300 shadow-sm focus:border-sky-500 focus:ring-sky-500">
+            </div>
+
+            <button type="submit"
+                    class="w-full mt-4 inline-flex justify-center rounded-md bg-sky-600 px-4 py-2 text-sm font-medium text-white hover:bg-sky-700 focus:outline-none focus:ring-2 focus:ring-sky-500 focus:ring-offset-2">
+                Entrar
+            </button>
+        </form>
+    </div>
+{% endblock %}
+

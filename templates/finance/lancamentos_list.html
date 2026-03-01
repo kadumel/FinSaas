@@ -1,0 +1,485 @@
+{% extends "base.html" %}
+
+{% block title %}Lançamentos · Financeiro{% endblock %}
+
+{% block content %}
+<div class="flex flex-col gap-4">
+    <div class="flex items-center justify-between">
+        <div>
+            <h1 class="text-2xl font-semibold text-slate-800">Lançamentos</h1>
+            <p class="text-sm text-slate-500">Gestão dos lançamentos financeiros por conta e empresa.</p>
+        </div>
+        <button type="button"
+                id="btn-abrir-modal-lancamento"
+                class="inline-flex items-center rounded-md bg-sky-600 px-4 py-2 text-sm font-medium text-white hover:bg-sky-700">
+            Novo lançamento
+        </button>
+    </div>
+
+    <form method="get" action="{% url 'financeiro-lancamentos' %}"
+          class="bg-white rounded-xl shadow-sm border border-slate-200 p-4 flex flex-wrap items-end gap-3">
+        <div class="w-40">
+            <label class="block text-xs font-medium text-slate-500 mb-1">Data (de)</label>
+            <input type="date" name="data_de" value="{{ filtros.data_de|default_if_none:'' }}"
+                   class="w-full rounded-md border-slate-300 text-sm shadow-sm focus:border-sky-500 focus:ring-sky-500">
+        </div>
+        <div class="w-40">
+            <label class="block text-xs font-medium text-slate-500 mb-1">Data (até)</label>
+            <input type="date" name="data_ate" value="{{ filtros.data_ate|default_if_none:'' }}"
+                   class="w-full rounded-md border-slate-300 text-sm shadow-sm focus:border-sky-500 focus:ring-sky-500">
+        </div>
+        <div class="w-56">
+            <label class="block text-xs font-medium text-slate-500 mb-1">Conta financeira</label>
+            <select name="conta_financeira_id"
+                    class="w-full rounded-md border-slate-300 text-sm shadow-sm focus:border-sky-500 focus:ring-sky-500">
+                <option value="">Todas</option>
+                {% for cf in contas_financeiras %}
+                    <option value="{{ cf.id }}" {% if filtros.conta_financeira_id == cf.id|stringformat:"s" %}selected{% endif %}>
+                        {{ cf.banco.nome }} – {{ cf.agencia }}/{{ cf.conta }}
+                    </option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="w-32">
+            <label class="block text-xs font-medium text-slate-500 mb-1">Tipo</label>
+            <select name="tipo"
+                    class="w-full rounded-md border-slate-300 text-sm shadow-sm focus:border-sky-500 focus:ring-sky-500">
+                <option value="">Todos</option>
+                <option value="C" {% if filtros.tipo == "C" %}selected{% endif %}>Crédito</option>
+                <option value="D" {% if filtros.tipo == "D" %}selected{% endif %}>Débito</option>
+            </select>
+        </div>
+        <div class="flex-1 min-w-[160px] max-w-sm">
+            <label class="block text-xs font-medium text-slate-500 mb-1">Origem</label>
+            <select name="origem"
+                    class="w-full rounded-md border-slate-300 text-sm shadow-sm focus:border-sky-500 focus:ring-sky-500">
+                <option value="">Todas</option>
+                <option value="03" {% if filtros.origem == "03" %}selected{% endif %}>Lançamentos</option>
+                <option value="06" {% if filtros.origem == "06" %}selected{% endif %}>Estornos</option>
+            </select>
+        </div>
+        <div class="ml-auto flex justify-end gap-2">
+            <button type="submit"
+                    class="px-4 py-2 rounded-md bg-slate-700 text-white text-sm font-medium hover:bg-slate-800">
+                Filtrar
+            </button>
+            <a href="{% url 'financeiro-lancamentos' %}"
+               class="px-4 py-2 rounded-md border border-slate-300 text-slate-700 text-sm hover:bg-slate-50">
+                Limpar
+            </a>
+        </div>
+    </form>
+
+    <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+        <table class="min-w-full text-sm">
+            <thead class="bg-slate-50 text-slate-600 uppercase text-xs tracking-wide text-center">
+                <tr>
+                    <th class="px-4 py-2 text-left">Empresa</th>
+                    <th class="px-4 py-2 text-left">Conta financeira</th>
+                    <th class="px-4 py-2 text-center">Data</th>
+                    <th class="px-4 py-2 text-center">Tipo</th>
+                    <th class="px-4 py-2 text-right">Valor (R$)</th>
+                    <th class="px-4 py-2 text-center w-24">Ações</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-100">
+                {% for l in lancamentos %}
+                    <tr class="hover:bg-slate-50">
+                        <td class="px-4 py-2 text-slate-700">{{ l.empresa.razao_social }}</td>
+                        <td class="px-4 py-2 text-slate-700">
+                            {{ l.conta_financeira.banco.nome }} – {{ l.conta_financeira.agencia }}/{{ l.conta_financeira.conta }}
+                        </td>
+                        <td class="px-4 py-2 text-center text-slate-700">{{ l.data|date:"d/m/Y" }}</td>
+                        <td class="px-4 py-2 text-center">
+                            {% if l.tipo == "C" %}
+                                <span class="inline-flex items-center rounded-full bg-sky-50 px-2 py-0.5 text-xs font-semibold text-sky-700 border border-sky-100">
+                                    Crédito
+                                </span>
+                            {% elif l.tipo == "D" %}
+                                <span class="inline-flex items-center rounded-full bg-rose-50 px-2 py-0.5 text-xs font-semibold text-rose-700 border border-rose-100">
+                                    Débito
+                                </span>
+                            {% else %}
+                                <span class="text-slate-700">{{ l.tipo }}</span>
+                            {% endif %}
+                        </td>
+                        <td class="px-4 py-2 text-right text-slate-800 font-medium">
+                            R$ {{ l.valor|floatformat:2 }}
+                        </td>
+                        <td class="px-4 py-2 text-center">
+                            <div class="inline-flex items-center gap-1">
+                                <button type="button"
+                                        class="inline-flex items-center rounded-md border border-slate-300 px-2 py-1 text-xs text-slate-700 hover:bg-slate-50 btn-ver-lancamento"
+                                        data-lanc-id="{{ l.id }}"
+                                        data-empresa-id="{{ l.empresa_id }}"
+                                        data-conta-id="{{ l.conta_financeira_id }}"
+                                        data-data="{{ l.data|date:'Y-m-d' }}"
+                                        data-tipo="{{ l.tipo }}"
+                                        data-valor="{{ l.valor|floatformat:2 }}"
+                                        data-centro-id="{{ l.centro_resultado_id|default_if_none:'' }}"
+                                        data-plano-id="{{ l.plano_conta_id|default_if_none:'' }}"
+                                        data-observacao="{{ l.observacao|default_if_none:'' }}"
+                                        title="Visualizar lançamento">
+                                    🔍
+                                </button>
+                                <button type="button"
+                                        class="inline-flex items-center rounded-md border border-slate-300 px-2 py-1 text-xs text-slate-700 hover:bg-slate-50 btn-editar-lancamento"
+                                        data-lanc-id="{{ l.id }}"
+                                        data-empresa-id="{{ l.empresa_id }}"
+                                        data-conta-id="{{ l.conta_financeira_id }}"
+                                        data-data="{{ l.data|date:'Y-m-d' }}"
+                                        data-tipo="{{ l.tipo }}"
+                                        data-valor="{{ l.valor|floatformat:2 }}"
+                                        data-centro-id="{{ l.centro_resultado_id|default_if_none:'' }}"
+                                        data-plano-id="{{ l.plano_conta_id|default_if_none:'' }}"
+                                        data-observacao="{{ l.observacao|default_if_none:'' }}"
+                                        data-estorno="{% if l.baixa_conta_pagar_id or l.baixa_conta_receber_id %}1{% else %}0{% endif %}"
+                                        title="Editar lançamento">
+                                    ✏️
+                                </button>
+                                <a href="{% url 'financeiro-lancamentos-excluir' l.id %}"
+                                   class="inline-flex items-center rounded-md border border-rose-300 px-2 py-1 text-xs text-rose-700 hover:bg-rose-50"
+                                   title="Excluir lançamento">
+                                    🗑️
+                                </a>
+                            </div>
+                        </td>
+                    </tr>
+                {% empty %}
+                    <tr>
+                        <td colspan="6" class="px-4 py-8 text-center text-slate-400 text-sm">
+                            Nenhum lançamento encontrado. Use os filtros para buscar.
+                        </td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+{# Modal de cadastro/edição de lançamento #}
+<div id="modal-lancamento"
+     class="fixed inset-0 z-50 {% if not modal_lancamento_aberto %}hidden{% endif %}"
+     aria-hidden="{% if modal_lancamento_aberto %}false{% else %}true{% endif %}">
+    <div class="fixed inset-0 bg-black/50" id="modal-lancamento-backdrop"></div>
+    <div class="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-lg max-h-[85vh] overflow-auto bg-white rounded-xl shadow-xl border border-slate-200 p-6">
+        <div class="flex justify-between items-center mb-4">
+            <h2 id="modal-lancamento-titulo" class="text-lg font-semibold text-slate-800">Novo lançamento</h2>
+            <button type="button" id="modal-lancamento-fechar" class="text-slate-400 hover:text-slate-600">✕</button>
+        </div>
+
+        <form method="post" action="{% url 'financeiro-lancamentos' %}" id="form-lancamento" class="space-y-4">
+            {% csrf_token %}
+            <input type="hidden" name="lancamento_id" id="lancamento_id" value="">
+
+            <div class="space-y-1">
+                <label class="block text-sm font-medium text-slate-700">Empresa</label>
+                <select name="empresa_id" id="empresa_id"
+                        class="w-full rounded-md border-slate-300 shadow-sm focus:border-sky-500 focus:ring-sky-500 text-sm">
+                    <option value="">Selecione...</option>
+                    {% for e in empresas %}
+                        <option value="{{ e.id }}" {% if form_lancamento.empresa_id == e.id|stringformat:"s" %}selected{% endif %}>
+                            {{ e.razao_social }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="space-y-1">
+                <label class="block text-sm font-medium text-slate-700">Conta financeira</label>
+                <select name="conta_financeira_id" id="conta_financeira_id"
+                        class="w-full rounded-md border-slate-300 shadow-sm focus:border-sky-500 focus:ring-sky-500 text-sm"
+                        required>
+                    <option value="">Selecione...</option>
+                    {% for cf in contas_financeiras %}
+                        <option value="{{ cf.id }}"
+                                data-empresa-id="{{ cf.empresa_id }}"
+                                {% if form_lancamento.conta_financeira_id == cf.id|stringformat:"s" %}selected{% endif %}>
+                            {{ cf.banco.nome }} – {{ cf.agencia }}/{{ cf.conta }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div class="space-y-1">
+                    <label class="block text-sm font-medium text-slate-700">Centro de resultado</label>
+                    <select name="centro_resultado_id" id="centro_resultado_id"
+                            class="w-full rounded-md border-slate-300 shadow-sm focus:border-sky-500 focus:ring-sky-500 text-sm"
+                            required>
+                        <option value="">Selecione...</option>
+                        {% for c in centros_resultado %}
+                            <option value="{{ c.id }}" {% if form_lancamento.centro_resultado_id == c.id|stringformat:"s" %}selected{% endif %}>
+                                {{ c.codigo }} - {{ c.descricao }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="space-y-1">
+                    <label class="block text-sm font-medium text-slate-700">Plano de contas</label>
+                    <select name="plano_conta_id" id="plano_conta_id"
+                            class="w-full rounded-md border-slate-300 shadow-sm focus:border-sky-500 focus:ring-sky-500 text-sm"
+                            required>
+                        <option value="">Selecione...</option>
+                        {% for p in planos_conta %}
+                            <option value="{{ p.id }}" {% if form_lancamento.plano_conta_id == p.id|stringformat:"s" %}selected{% endif %}>
+                                {{ p.codigo }} - {{ p.descricao }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div class="space-y-1">
+                    <label class="block text-sm font-medium text-slate-700">Data</label>
+                    <input type="date" name="data" id="data"
+                           class="w-full rounded-md border-slate-300 shadow-sm focus:border-sky-500 focus:ring-sky-500 text-sm"
+                           value="{{ form_lancamento.data|default_if_none:'' }}">
+                </div>
+                <div class="space-y-1">
+                    <label class="block text-sm font-medium text-slate-700">Tipo</label>
+                    <select name="tipo" id="tipo"
+                            class="w-full rounded-md border-slate-300 shadow-sm focus:border-sky-500 focus:ring-sky-500 text-sm">
+                        <option value="">Selecione...</option>
+                        <option value="C" {% if form_lancamento.tipo == "C" %}selected{% endif %}>Crédito</option>
+                        <option value="D" {% if form_lancamento.tipo == "D" %}selected{% endif %}>Débito</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="space-y-1">
+                <label class="block text-sm font-medium text-slate-700">Valor (R$)</label>
+                <input type="text" name="valor" id="valor"
+                       class="w-full rounded-md border-slate-300 shadow-sm focus:border-sky-500 focus:ring-sky-500 text-sm"
+                       placeholder="0,00"
+                       value="{{ form_lancamento.valor|default_if_none:'' }}">
+            </div>
+
+            <div class="space-y-1">
+                <label class="block text-sm font-medium text-slate-700">Observação</label>
+                <textarea name="observacao" id="observacao" rows="3"
+                          class="w-full rounded-md border-slate-300 shadow-sm focus:border-sky-500 focus:ring-sky-500 text-sm">{{ form_lancamento.observacao|default_if_none:'' }}</textarea>
+            </div>
+
+            {% if messages %}
+                <div class="mt-2 space-y-1">
+                    {% for message in messages %}
+                        <p class="text-xs {% if message.tags == 'error' %}text-rose-600{% else %}text-slate-600{% endif %}">
+                            {{ message }}
+                        </p>
+                    {% endfor %}
+                </div>
+            {% endif %}
+
+            <div class="flex justify-end gap-2 pt-4" id="modal-lancamento-acoes">
+                <button type="button"
+                        id="modal-lancamento-cancelar"
+                        class="px-4 py-2 text-sm rounded-md border border-slate-300 text-slate-700 hover:bg-slate-50">
+                    Cancelar
+                </button>
+                <button type="submit"
+                        class="px-4 py-2 text-sm rounded-md bg-sky-600 text-white font-medium hover:bg-sky-700">
+                    Salvar
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+(function() {
+    var modal = document.getElementById("modal-lancamento");
+    if (!modal) return;
+    var tituloEl = document.getElementById("modal-lancamento-titulo");
+    var form = document.getElementById("form-lancamento");
+    var campoId = document.getElementById("lancamento_id");
+    var campoEmpresa = document.getElementById("empresa_id");
+    var campoConta = document.getElementById("conta_financeira_id");
+    var campoData = document.getElementById("data");
+    var campoTipo = document.getElementById("tipo");
+    var campoValor = document.getElementById("valor");
+    var campoObservacao = document.getElementById("observacao");
+    var blocoAcoes = document.getElementById("modal-lancamento-acoes");
+
+    function abrirModalNovo() {
+        if (tituloEl) tituloEl.textContent = "Novo lançamento";
+        if (campoId) campoId.value = "";
+        if (campoEmpresa) campoEmpresa.value = "";
+        if (campoConta) campoConta.value = "";
+        if (campoData) campoData.value = "";
+        if (campoTipo) campoTipo.value = "";
+        if (campoValor) campoValor.value = "";
+        if (campoObservacao) campoObservacao.value = "";
+        // garante que todas as contas fiquem visíveis ao abrir novo lançamento
+        filtrarContasPorEmpresa();
+        if (blocoAcoes) blocoAcoes.classList.remove("hidden");
+        modal.classList.remove("hidden");
+        if (campoEmpresa) {
+            campoEmpresa.focus();
+        }
+    }
+
+    function preencherCamposDoBotao(btn) {
+        var id = btn.getAttribute("data-lanc-id") || "";
+        var empresaId = btn.getAttribute("data-empresa-id") || "";
+        var contaId = btn.getAttribute("data-conta-id") || "";
+        var data = btn.getAttribute("data-data") || "";
+        var tipo = btn.getAttribute("data-tipo") || "";
+        var valor = btn.getAttribute("data-valor") || "";
+        var centroId = btn.getAttribute("data-centro-id") || "";
+        var planoId = btn.getAttribute("data-plano-id") || "";
+        var observacao = btn.getAttribute("data-observacao") || "";
+
+        if (campoId) campoId.value = id;
+        if (campoEmpresa) campoEmpresa.value = empresaId;
+        filtrarContasPorEmpresa();
+        if (campoConta) campoConta.value = contaId;
+        if (campoData) campoData.value = data;
+        if (campoTipo) campoTipo.value = tipo;
+        if (campoValor) campoValor.value = valor.replace(".", ",");
+        if (campoObservacao) campoObservacao.value = observacao;
+        var campoCentro = document.getElementById("centro_resultado_id");
+        var campoPlano = document.getElementById("plano_conta_id");
+        if (campoCentro) campoCentro.value = centroId;
+        if (campoPlano) campoPlano.value = planoId;
+    }
+
+    function setReadonlyCampos(readonly) {
+        var elementos = modal.querySelectorAll("select, input, textarea");
+        elementos.forEach(function (el) {
+            if (el.name === "csrfmiddlewaretoken" || el.id === "lancamento_id") return;
+            if (readonly) {
+                el.setAttribute("disabled", "disabled");
+            } else {
+                el.removeAttribute("disabled");
+            }
+        });
+    }
+
+    function abrirModalEditar(btn) {
+        if (tituloEl) tituloEl.textContent = "Editar lançamento";
+        setReadonlyCampos(false);
+        preencherCamposDoBotao(btn);
+
+        var isEstorno = (btn.getAttribute("data-estorno") || "") === "1";
+        var campoCentro = document.getElementById("centro_resultado_id");
+        var campoPlano = document.getElementById("plano_conta_id");
+
+        if (isEstorno) {
+            // Em estorno: só pode editar centro resultado, plano, data e observação
+            if (campoEmpresa) campoEmpresa.setAttribute("disabled", "disabled");
+            if (campoConta) campoConta.setAttribute("disabled", "disabled");
+            if (campoTipo) campoTipo.setAttribute("disabled", "disabled");
+            if (campoValor) campoValor.setAttribute("disabled", "disabled");
+            if (campoCentro) campoCentro.removeAttribute("required");
+            if (campoPlano) campoPlano.removeAttribute("required");
+        } else {
+            if (campoEmpresa) campoEmpresa.removeAttribute("disabled");
+            if (campoConta) campoConta.removeAttribute("disabled");
+            if (campoTipo) campoTipo.removeAttribute("disabled");
+            if (campoValor) campoValor.removeAttribute("disabled");
+            if (campoCentro) campoCentro.setAttribute("required", "required");
+            if (campoPlano) campoPlano.setAttribute("required", "required");
+        }
+
+        if (blocoAcoes) blocoAcoes.classList.remove("hidden");
+        modal.classList.remove("hidden");
+    }
+
+    function abrirModalVisualizar(btn) {
+        if (tituloEl) tituloEl.textContent = "Visualizar lançamento";
+        preencherCamposDoBotao(btn);
+        setReadonlyCampos(true);
+        if (blocoAcoes) blocoAcoes.classList.add("hidden");
+        modal.classList.remove("hidden");
+    }
+
+    function fecharModal() {
+        modal.classList.add("hidden");
+        // sempre reativa campos ao fechar
+        setReadonlyCampos(false);
+    }
+
+    var urlLista = "{% url 'financeiro-lancamentos' %}";
+    var urlVerificarIncluir = "{% url 'financeiro-lancamentos-verificar-incluir' %}";
+    var btnNovo = document.getElementById("btn-abrir-modal-lancamento");
+    var btnFechar = document.getElementById("modal-lancamento-fechar");
+    var btnCancelar = document.getElementById("modal-lancamento-cancelar");
+    var backdrop = document.getElementById("modal-lancamento-backdrop");
+
+    if (btnNovo) {
+        btnNovo.addEventListener("click", function() {
+            fetch(urlVerificarIncluir)
+                .then(function(r) { return r.json(); })
+                .then(function(data) {
+                    if (!data.pode_incluir) {
+                        window.location.href = urlLista + "?erro_novo=permissao";
+                        return;
+                    }
+                    abrirModalNovo();
+                })
+                .catch(function() {
+                    window.location.href = urlLista + "?erro_novo=erro";
+                });
+        });
+    }
+    if (btnFechar) btnFechar.addEventListener("click", fecharModal);
+    if (btnCancelar) btnCancelar.addEventListener("click", fecharModal);
+    if (backdrop) backdrop.addEventListener("click", fecharModal);
+
+    document.addEventListener("click", function(e) {
+        var btnVer = e.target.closest(".btn-ver-lancamento");
+        if (btnVer) {
+            abrirModalVisualizar(btnVer);
+            return;
+        }
+        var btnEditar = e.target.closest(".btn-editar-lancamento");
+        if (btnEditar) {
+            abrirModalEditar(btnEditar);
+        }
+    });
+
+    // Filtra contas pela empresa selecionada
+    function filtrarContasPorEmpresa() {
+        if (!campoConta || !campoEmpresa) return;
+        var empresaId = campoEmpresa.value || "";
+        Array.prototype.forEach.call(campoConta.options, function(opt) {
+            var optEmpresaId = opt.getAttribute("data-empresa-id") || "";
+            if (!opt.value) {
+                opt.hidden = false;
+                opt.disabled = false;
+                return;
+            }
+            if (!empresaId || optEmpresaId === empresaId) {
+                opt.hidden = false;
+                opt.disabled = false;
+            } else {
+                if (campoConta.value === opt.value) {
+                    campoConta.value = "";
+                }
+                opt.hidden = true;
+                opt.disabled = true;
+            }
+        });
+    }
+
+    if (campoEmpresa) {
+        campoEmpresa.addEventListener("change", filtrarContasPorEmpresa);
+    }
+
+    // Quando escolher a conta, ajusta automaticamente a empresa correspondente
+    if (campoConta && campoEmpresa) {
+        campoConta.addEventListener("change", function() {
+            var opt = campoConta.options[campoConta.selectedIndex];
+            if (!opt) return;
+            var optEmpresaId = opt.getAttribute("data-empresa-id") || "";
+            if (optEmpresaId && campoEmpresa.value !== optEmpresaId) {
+                campoEmpresa.value = optEmpresaId;
+                filtrarContasPorEmpresa();
+            }
+        });
+    }
+})();
+</script>
+{% endblock %}

@@ -1,0 +1,289 @@
+{% extends "base.html" %}
+
+{% block title %}Contas a Pagar · Movimentos{% endblock %}
+
+{% block content %}
+<div class="flex flex-col gap-4">
+    <div class="flex items-center justify-between">
+        <div>
+            <h1 class="text-2xl font-semibold text-slate-800">Contas a Pagar</h1>
+            <p class="text-sm text-slate-500">Lançamentos de contas a pagar por empresa.</p>
+        </div>
+        <a href="{% url 'movimentos-contas-a-pagar-novo' %}"
+           class="inline-flex items-center rounded-md bg-sky-600 px-4 py-2 text-sm font-medium text-white hover:bg-sky-700">
+            Nova conta a pagar
+        </a>
+    </div>
+
+    <form method="get" action="{% url 'movimentos-contas-a-pagar' %}"
+          class="bg-white rounded-xl shadow-sm border border-slate-200 p-4 flex flex-wrap items-end gap-3">
+        <div class="flex-1 min-w-[160px] max-w-sm">
+            <label class="block text-xs font-medium text-slate-500 mb-1">Descrição</label>
+            <input type="text" name="descricao" value="{{ filtros.descricao }}"
+                   class="w-full rounded-md border-slate-300 text-sm shadow-sm focus:border-sky-500 focus:ring-sky-500"
+                   placeholder="Buscar por descrição">
+        </div>
+        <div class="w-56">
+            <label class="block text-xs font-medium text-slate-500 mb-1">Fornecedor</label>
+            <select name="pessoa_id"
+                    class="w-full rounded-md border-slate-300 text-sm shadow-sm focus:border-sky-500 focus:ring-sky-500">
+                <option value="">Todos</option>
+                {% for p in pessoas_fornecedoras %}
+                    <option value="{{ p.id }}" {% if selected_pessoa_id == p.id %}selected{% endif %}>
+                        {{ p.nome_razao }}
+                    </option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="w-40">
+            <label class="block text-xs font-medium text-slate-500 mb-1">Status</label>
+            <select name="status"
+                    class="w-full rounded-md border-slate-300 text-sm shadow-sm focus:border-sky-500 focus:ring-sky-500">
+                <option value="">Todos</option>
+                {% for valor, label in status_choices %}
+                    <option value="{{ valor }}" {% if filtros.status == valor %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="w-40">
+            <label class="block text-xs font-medium text-slate-500 mb-1">Data emissão (de)</label>
+            <input type="date" name="data_emissao_de" value="{{ filtros.data_emissao_de }}"
+                   class="w-full rounded-md border-slate-300 text-sm shadow-sm focus:border-sky-500 focus:ring-sky-500">
+        </div>
+        <div class="w-40">
+            <label class="block text-xs font-medium text-slate-500 mb-1">Data emissão (até)</label>
+            <input type="date" name="data_emissao_ate" value="{{ filtros.data_emissao_ate }}"
+                   class="w-full rounded-md border-slate-300 text-sm shadow-sm focus:border-sky-500 focus:ring-sky-500">
+        </div>
+        <div class="w-28">
+            <label class="block text-xs font-medium text-slate-500 mb-1">Competência (MM/AAAA)</label>
+            <input type="text" name="competencia" value="{{ filtros.competencia }}"
+                   class="w-full rounded-md border-slate-300 text-sm shadow-sm focus:border-sky-500 focus:ring-sky-500"
+                   placeholder="01/2026">
+        </div>
+        <div class="ml-auto flex justify-end gap-2">
+            <button type="submit"
+                    class="px-4 py-2 rounded-md bg-slate-700 text-white text-sm font-medium hover:bg-slate-800">
+                Filtrar
+            </button>
+            <a href="{% url 'movimentos-contas-a-pagar' %}"
+               class="px-4 py-2 rounded-md border border-slate-300 text-slate-700 text-sm hover:bg-slate-50">
+                Limpar
+            </a>
+        </div>
+    </form>
+
+    <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+        <table class="min-w-full text-sm">
+            <thead class="bg-slate-50 text-slate-600 uppercase text-xs tracking-wide text-center">
+                <tr>
+                    <th class="px-4 py-2 text-left">Empresa</th>
+                    <th class="px-4 py-2 text-left">Fornecedor</th>
+                    <th class="px-4 py-2 text-left">Descrição</th>
+                    <th class="px-4 py-2 text-center">Data emissão</th>
+                    <th class="px-4 py-2 text-right">Valor total</th>
+                    <th class="px-4 py-2 text-center">Status</th>
+                    <th class="px-4 py-2">Ações</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-100">
+                {% for c in contas %}
+                    <tr class="hover:bg-slate-50">
+                        <td class="px-4 py-2 text-slate-700">{{ c.empresa.razao_social }}</td>
+                        <td class="px-4 py-2 text-slate-700">{{ c.pessoa.nome_razao }}</td>
+                        <td class="px-4 py-2 text-slate-700">{{ c.descricao }}</td>
+                        <td class="px-4 py-2 text-center text-slate-700">
+                            {{ c.data_emissao|date:"d/m/Y"|default:"—" }}
+                        </td>
+                        <td class="px-4 py-2 text-right text-slate-800 font-medium">
+                            R$ {{ c.valor_total|floatformat:2 }}
+                        </td>
+                        <td class="px-4 py-2 text-center text-slate-700">
+                            {{ c.get_status_display|default:c.status }}
+                        </td>
+                        <td class="px-4 py-2 text-right">
+                            <div class="inline-flex items-center gap-1">
+                                <button type="button"
+                                        class="inline-flex items-center rounded-md border border-slate-300 px-2 py-1 text-xs text-slate-700 hover:bg-slate-50 btn-ver-vencimentos"
+                                        data-conta-id="{{ c.id }}"
+                                        title="Ver vencimentos">
+                                    📅
+                                </button>
+                                <button type="button"
+                                        class="inline-flex items-center rounded-md border border-slate-300 px-2 py-1 text-xs text-slate-700 hover:bg-slate-50 btn-ver-rateios"
+                                        data-conta-id="{{ c.id }}"
+                                        title="Ver rateios">
+                                    📊
+                                </button>
+                                <a href="{% url 'movimentos-contas-a-pagar-editar' c.id %}"
+                                   class="inline-flex items-center rounded-md border border-slate-300 px-2 py-1 text-xs text-slate-700 hover:bg-slate-50"
+                                   title="Editar">
+                                    ✏️
+                                </a>
+                                <a href="{% url 'movimentos-contas-a-pagar-excluir' c.id %}"
+                                   class="inline-flex items-center rounded-md border border-rose-300 px-2 py-1 text-xs text-rose-700 hover:bg-rose-50"
+                                   title="Excluir">
+                                    🗑️
+                                </a>
+                            </div>
+                        </td>
+                    </tr>
+                {% empty %}
+                    <tr>
+                        <td colspan="7" class="px-4 py-8 text-center text-slate-400 text-sm">
+                            Nenhuma conta a pagar encontrada. Use os filtros ou cadastre uma nova.
+                        </td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+{# Modal genérico para detalhes (vencimentos / rateios) #}
+<div id="modal-detalhes" class="fixed inset-0 z-50 hidden" aria-hidden="true">
+    <div class="fixed inset-0 bg-black/50" id="modal-detalhes-backdrop"></div>
+    <div class="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-3xl max-h-[80vh] overflow-auto bg-white rounded-xl shadow-xl border border-slate-200 p-6">
+        <div class="flex justify-between items-center mb-4">
+            <h2 id="modal-detalhes-titulo" class="text-lg font-semibold text-slate-800">Detalhes</h2>
+            <button type="button" id="modal-detalhes-fechar" class="text-slate-400 hover:text-slate-600">✕</button>
+        </div>
+        <div id="modal-detalhes-conteudo" class="text-sm text-slate-700"></div>
+        <div class="mt-4 flex justify-end">
+            <button type="button" id="modal-detalhes-fechar2"
+                    class="px-4 py-2 rounded-md border border-slate-300 text-slate-700 text-sm hover:bg-slate-50">
+                Fechar
+            </button>
+        </div>
+    </div>
+</div>
+
+{# Conteúdos pré-renderizados para os modais #}
+{% for c in contas %}
+    <div id="vencimentos-conteudo-{{ c.id }}" class="hidden">
+        <p class="text-sm text-slate-600 mb-2">
+            Vencimentos da conta: <span class="font-semibold">{{ c.descricao }}</span>
+        </p>
+        <table class="min-w-full text-xs border border-slate-200 rounded-lg overflow-hidden">
+            <thead class="bg-slate-50 text-slate-600 uppercase tracking-wide">
+                <tr>
+                    <th class="px-3 py-2 text-left">Data vencimento</th>
+                    <th class="px-3 py-2 text-right">Valor (R$)</th>
+                    <th class="px-3 py-2 text-center">Status</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-100">
+                {% for v in c.vencimentos_resumo %}
+                    <tr>
+                        <td class="px-3 py-2">{{ v.data|date:"d/m/Y" }}</td>
+                        <td class="px-3 py-2 text-right">R$ {{ v.valor|floatformat:2 }}</td>
+                        <td class="px-3 py-2 text-center">{{ v.status }}</td>
+                    </tr>
+                {% empty %}
+                    <tr>
+                        <td colspan="3" class="px-3 py-4 text-center text-slate-400">
+                            Nenhum vencimento cadastrado.
+                        </td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <div id="rateios-conteudo-{{ c.id }}" class="hidden">
+        <p class="text-sm text-slate-600 mb-2">
+            Rateios da conta: <span class="font-semibold">{{ c.descricao }}</span>
+        </p>
+        <table class="min-w-full text-xs border border-slate-200 rounded-lg overflow-hidden">
+            <thead class="bg-slate-50 text-slate-600 uppercase tracking-wide">
+                <tr>
+                    <th class="px-3 py-2 text-left">Empresa</th>
+                    <th class="px-3 py-2 text-left">Centro de resultado</th>
+                    <th class="px-3 py-2 text-left">Plano de contas</th>
+                    <th class="px-3 py-2 text-right">Valor (R$)</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-100">
+                {% for r in c.rateios_resumo %}
+                    <tr>
+                        <td class="px-3 py-2">{{ r.empresa }}</td>
+                        <td class="px-3 py-2">{{ r.centro }}</td>
+                        <td class="px-3 py-2">{{ r.plano }}</td>
+                        <td class="px-3 py-2 text-right">R$ {{ r.valor|floatformat:2 }}</td>
+                    </tr>
+                {% empty %}
+                    <tr>
+                        <td colspan="4" class="px-3 py-4 text-center text-slate-400">
+                            Nenhum rateio cadastrado.
+                        </td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+{% endfor %}
+
+<script>
+(function() {
+    var modal = document.getElementById("modal-detalhes");
+    if (!modal) return;
+    var tituloEl = document.getElementById("modal-detalhes-titulo");
+    var conteudoEl = document.getElementById("modal-detalhes-conteudo");
+    var btnFechar = document.getElementById("modal-detalhes-fechar");
+    var btnFechar2 = document.getElementById("modal-detalhes-fechar2");
+    var backdrop = document.getElementById("modal-detalhes-backdrop");
+
+    function abrirModal(titulo, html) {
+        if (tituloEl) tituloEl.textContent = titulo || "Detalhes";
+        if (conteudoEl) conteudoEl.innerHTML = html || "";
+        modal.classList.remove("hidden");
+    }
+    function fecharModal() {
+        modal.classList.add("hidden");
+    }
+
+    if (btnFechar) btnFechar.addEventListener("click", fecharModal);
+    if (btnFechar2) btnFechar2.addEventListener("click", fecharModal);
+    if (backdrop) backdrop.addEventListener("click", fecharModal);
+
+    document.addEventListener("click", function(e) {
+        var btnVenc = e.target.closest(".btn-ver-vencimentos");
+        var btnRateio = e.target.closest(".btn-ver-rateios");
+        if (btnVenc) {
+            var id = btnVenc.getAttribute("data-conta-id");
+            var src = document.getElementById("vencimentos-conteudo-" + id);
+            if (src && conteudoEl) {
+                abrirModal("Vencimentos da conta", src.innerHTML);
+            }
+        } else if (btnRateio) {
+            var id2 = btnRateio.getAttribute("data-conta-id");
+            var src2 = document.getElementById("rateios-conteudo-" + id2);
+            if (src2 && conteudoEl) {
+                abrirModal("Rateios da conta", src2.innerHTML);
+            }
+        }
+    });
+
+    // Máscara para campo de competência (MM/AAAA) no filtro
+    var form = document.querySelector('form[action="{% url 'movimentos-contas-a-pagar' %}"]');
+    if (form) {
+        var campoComp = form.querySelector('input[name="competencia"]');
+        if (campoComp) {
+            campoComp.addEventListener("input", function() {
+                var pos = campoComp.selectionStart || 0;
+                var digitos = (campoComp.value || "").replace(/\D/g, "").slice(0, 6); // MMYYYY
+                var formatado;
+                if (digitos.length <= 2) {
+                    formatado = digitos;
+                } else {
+                    formatado = digitos.slice(0, 2) + "/" + digitos.slice(2);
+                }
+                campoComp.value = formatado;
+                // Mantém o cursor no fim
+                campoComp.setSelectionRange(formatado.length, formatado.length);
+            });
+        }
+    }
+})();
+</script>
+{% endblock %}

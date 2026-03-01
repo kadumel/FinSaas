@@ -1,0 +1,888 @@
+{% extends "base.html" %}
+
+{% block title %}{% if conta %}Editar conta a pagar{% else %}Nova conta a pagar{% endif %} · Movimentos{% endblock %}
+
+{% block content %}
+{{ centros_para_js|json_script:"centros-data" }}
+{{ planos_para_js|json_script:"planos-data" }}
+<div class="max-w-2xl mx-auto">
+    <h1 class="text-2xl font-semibold text-slate-800 mb-2">
+        {% if conta %}Editar conta a pagar{% else %}Nova conta a pagar{% endif %}
+    </h1>
+    <p class="text-sm text-slate-500 mb-4">Lançamento de conta a pagar. Utilize a empresa selecionada no menu ou escolha outra do contexto.</p>
+
+    <form method="post" id="form-conta-pagar" class="bg-white rounded-xl shadow-sm border border-slate-200 p-6 space-y-4">
+        {% csrf_token %}
+
+        <div class="space-y-1">
+            <label class="block text-sm font-medium text-slate-700">Empresa</label>
+            <select name="empresa_id" required
+                    class="w-full rounded-md border-slate-300 shadow-sm focus:border-sky-500 focus:ring-sky-500">
+                {% for e in empresas %}
+                    <option value="{{ e.id }}"
+                            {% if form.empresa_id %}{% if form.empresa_id == e.id %}selected{% endif %}
+                            {% elif conta and conta.empresa_id == e.id %}selected{% endif %}>
+                        {{ e.razao_social }}
+                    </option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div class="space-y-1">
+            <label class="block text-sm font-medium text-slate-700">Fornecedor</label>
+            <select name="pessoa_id" required
+                    class="w-full rounded-md border-slate-300 shadow-sm focus:border-sky-500 focus:ring-sky-500">
+                <option value="">Selecione o fornecedor</option>
+                {% for p in pessoas_fornecedoras %}
+                    <option value="{{ p.id }}"
+                            {% if form.pessoa_id %}{% if form.pessoa_id == p.id %}selected{% endif %}
+                            {% elif conta and conta.pessoa_id == p.id %}selected{% endif %}>
+                        {{ p.nome_razao }}
+                    </option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div class="space-y-1">
+            <label class="block text-sm font-medium text-slate-700">Descrição</label>
+            <input type="text" name="descricao" required
+                   value="{{ form.descricao|default_if_none:'' }}"
+                   class="w-full rounded-md border-slate-300 shadow-sm focus:border-sky-500 focus:ring-sky-500"
+                   placeholder="Ex.: Compra de material">
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div class="space-y-1">
+                <label class="block text-sm font-medium text-slate-700">Tipo de documento</label>
+                <select name="tipo_documento_id" required
+                        class="w-full rounded-md border-slate-300 shadow-sm focus:border-sky-500 focus:ring-sky-500">
+                    <option value="">Selecione</option>
+                    {% for td in tipos_documento %}
+                        <option value="{{ td.id }}"
+                                {% if form.tipo_documento_id == td.id %}selected{% endif %}
+                                {% if conta and not form.tipo_documento_id and conta.tipo_documento_id == td.id %}selected{% endif %}>
+                            {{ td.nome }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="space-y-1">
+                <label class="block text-sm font-medium text-slate-700">Documento</label>
+                <input type="text" name="documento" maxlength="30" required
+                       value="{{ form.documento|default_if_none:'' }}"
+                       class="w-full rounded-md border-slate-300 shadow-sm focus:border-sky-500 focus:ring-sky-500"
+                       placeholder="Número do documento">
+            </div>
+            <div class="space-y-1">
+                <label class="block text-sm font-medium text-slate-700">Competência (MM/AAAA)</label>
+                <input type="text" name="competencia"
+                       value="{{ form.competencia|default_if_none:'' }}"
+                       class="w-full rounded-md border-slate-300 shadow-sm focus:border-sky-500 focus:ring-sky-500"
+                       placeholder="01/2026">
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div class="space-y-1">
+                <label class="block text-sm font-medium text-slate-700">Data de emissão</label>
+                <input type="date" name="data_emissao" required
+                       value="{{ form.data_emissao|default_if_none:'' }}"
+                       class="w-full rounded-md border-slate-300 shadow-sm focus:border-sky-500 focus:ring-sky-500">
+            </div>
+            <div class="space-y-1">
+                <label class="block text-sm font-medium text-slate-700">Valor total (R$)</label>
+                <input type="text" name="valor_total" required
+                       value="{{ form.valor_total|default_if_none:'' }}"
+                       class="w-full rounded-md border-slate-300 shadow-sm focus:border-sky-500 focus:ring-sky-500"
+                       placeholder="0,00">
+                <p class="text-xs text-slate-500">Deve ser igual à soma dos vencimentos e dos rateios.</p>
+            </div>
+            <div class="space-y-1">
+                <label class="block text-sm font-medium text-slate-700">Status</label>
+                <select name="status" disabled
+                        class="w-full rounded-md border-slate-300 shadow-sm bg-slate-100 text-slate-700 cursor-not-allowed">
+                    {% for valor, label in status_choices %}
+                        <option value="{{ valor }}"
+                                {% if form.status == valor %}selected{% endif %}
+                                {% if conta and conta.status == valor and not form.status %}selected{% endif %}>
+                            {{ label }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+        </div>
+
+        <div class="flex flex-wrap gap-3 pt-2">
+            <button type="button" id="btn-modal-vencimentos"
+                    class="px-4 py-2 rounded-md border border-slate-300 text-slate-700 text-sm font-medium hover:bg-slate-50">
+                📅 Gerenciar vencimentos (<span id="contador-vencimentos">0</span>)
+            </button>
+            <button type="button" id="btn-modal-rateio"
+                    class="px-4 py-2 rounded-md border border-slate-300 text-slate-700 text-sm font-medium hover:bg-slate-50">
+                📊 Gerenciar rateio (<span id="contador-rateio">0</span>)
+            </button>
+        </div>
+
+        <div class="flex justify-end gap-2 pt-4">
+            <a href="{% url 'movimentos-contas-a-pagar' %}"
+               class="px-4 py-2 text-sm rounded-md border border-slate-300 text-slate-700 hover:bg-slate-50">
+                Cancelar
+            </a>
+            <button type="submit"
+                    class="px-4 py-2 text-sm rounded-md bg-sky-600 text-white font-medium hover:bg-sky-700">
+                Salvar
+            </button>
+        </div>
+
+        <!-- Modal Vencimentos -->
+    <div id="modal-vencimentos" class="fixed inset-0 z-50 hidden" aria-hidden="true">
+        <div class="fixed inset-0 bg-black/50" id="modal-vencimentos-backdrop"></div>
+        <div class="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-lg max-h-[90vh] overflow-auto bg-white rounded-xl shadow-xl border border-slate-200 p-6">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-lg font-semibold text-slate-800">Vencimentos</h2>
+                <button type="button" id="modal-vencimentos-fechar" class="text-slate-400 hover:text-slate-600">✕</button>
+            </div>
+            <p class="text-xs text-slate-500 mb-3">Adicione ao menos um vencimento. O valor total será a soma dos valores.</p>
+            <div class="mb-3">
+                <button type="button" id="btn-adicionar-vencimento" class="text-sm text-sky-600 hover:text-sky-700 font-medium">+ Adicionar vencimento</button>
+            </div>
+            <table class="min-w-full text-sm border border-slate-200 rounded-lg overflow-hidden">
+                <thead class="bg-slate-50">
+                    <tr>
+                        <th class="px-3 py-2 text-left text-slate-600">Data vencimento</th>
+                        <th class="px-3 py-2 text-left text-slate-600">Valor (R$)</th>
+                        <th class="px-3 py-2 w-20">Ação</th>
+                    </tr>
+                </thead>
+                <tbody id="tbody-vencimentos">
+                    {% for v in form.vencimentos %}
+                    <tr class="linha-vencimento border-t border-slate-100">
+                        <td class="px-3 py-2">
+                            <input type="hidden" name="vencimento_id" value="{{ v.id|default_if_none:'' }}">
+                            <input type="date" name="data_vencimento" value="{{ v.data|default_if_none:'' }}"
+                                   class="w-full rounded border-slate-300 text-sm">
+                        </td>
+                        <td class="px-3 py-2">
+                            <input type="text" name="valor" value="{{ v.valor|default_if_none:'' }}"
+                                   class="valor-vencimento w-full rounded border-slate-300 text-sm" placeholder="0,00">
+                        </td>
+                        <td class="px-3 py-2"><button type="button" class="remover-vencimento text-rose-600 text-xs">Remover</button></td>
+                    </tr>
+                    {% endfor %}
+                    {% for v in vencimentos_existentes %}
+                    <tr class="linha-vencimento-existente border-t border-slate-100 text-slate-600 text-sm">
+                        <td class="px-3 py-2">{{ v.data_vencimento|date:"d/m/Y" }}</td>
+                        <td class="px-3 py-2 valor-venc-existente" data-valor="{{ v.valor|floatformat:2 }}">
+                            R$ {{ v.valor|floatformat:2 }}
+                        </td>
+                        <td class="px-3 py-2">—</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            <p class="text-sm text-slate-600 mt-2">Total: R$ <strong id="modal-vencimentos-total">0,00</strong></p>
+            <div class="mt-4 flex justify-end">
+                <button type="button" id="modal-vencimentos-ok" class="px-4 py-2 rounded-md bg-sky-600 text-white text-sm">Concluído</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Rateio -->
+    <div id="modal-rateio" class="fixed inset-0 z-50 hidden" aria-hidden="true">
+        <div class="fixed inset-0 bg-black/50" id="modal-rateio-backdrop"></div>
+        <div class="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-4xl max-h-[90vh] overflow-auto bg-white rounded-xl shadow-xl border border-slate-200 p-6">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-lg font-semibold text-slate-800">Rateio</h2>
+                <button type="button" id="modal-rateio-fechar" class="text-slate-400 hover:text-slate-600">✕</button>
+            </div>
+            <p class="text-xs text-slate-500 mb-3">Distribua o valor por estabelecimento, centro de resultado e plano de contas. Digite para buscar centro e plano.</p>
+            <div class="mb-3">
+                <button type="button" id="btn-adicionar-rateio" class="text-sm text-sky-600 hover:text-sky-700 font-medium">+ Adicionar rateio</button>
+            </div>
+            <table class="min-w-full text-sm border border-slate-200 rounded-lg overflow-hidden">
+                <thead class="bg-slate-50">
+                    <tr>
+                        <th class="px-2 py-2 text-left text-slate-600">Empresa</th>
+                        <th class="px-2 py-2 text-left text-slate-600">Centro de resultado</th>
+                        <th class="px-2 py-2 text-left text-slate-600">Plano de contas</th>
+                        <th class="px-2 py-2 text-left text-slate-600">Valor (R$)</th>
+                        <th class="px-2 py-2 text-left text-slate-600 w-24">%</th>
+                        <th class="px-2 py-2 w-16">Ação</th>
+                    </tr>
+                </thead>
+                <tbody id="tbody-rateio">
+                    <tr id="rateio-row-template" class="linha-rateio border-t border-slate-100" style="display:none">
+                        <td class="px-2 py-2">
+                            <select name="rateio_empresa_id" class="w-full rounded border-slate-300 text-sm py-1.5">
+                                {% for e in empresas %}
+                                <option value="{{ e.id }}">{{ e.razao_social }}</option>
+                                {% endfor %}
+                            </select>
+                        </td>
+                        <td class="px-2 py-2">
+                            <div class="combobox-centro relative">
+                                <input type="text" class="combobox-input w-full rounded border-slate-300 text-sm py-1.5" placeholder="Buscar centro..." autocomplete="off">
+                                <input type="hidden" name="rateio_centro_id" class="combobox-hidden">
+                                <div class="combobox-dropdown absolute left-0 right-0 top-full mt-0.5 bg-white border border-slate-200 rounded shadow-lg z-[100] max-h-48 overflow-auto hidden"></div>
+                            </div>
+                        </td>
+                        <td class="px-2 py-2">
+                            <div class="combobox-plano relative">
+                                <input type="text" class="combobox-input w-full rounded border-slate-300 text-sm py-1.5" placeholder="Buscar plano..." autocomplete="off">
+                                <input type="hidden" name="rateio_plano_id" class="combobox-hidden">
+                                <div class="combobox-dropdown absolute left-0 right-0 top-full mt-0.5 bg-white border border-slate-200 rounded shadow-lg z-[100] max-h-48 overflow-auto hidden"></div>
+                            </div>
+                        </td>
+                        <td class="px-2 py-2">
+                            <input type="text" name="rateio_valor" class="rateio-valor w-full rounded border-slate-300 text-sm py-1.5" placeholder="0,00">
+                        </td>
+                        <td class="px-2 py-2">
+                            <input type="text" class="rateio-percentual w-full rounded border-slate-300 text-sm py-1.5"
+                                   value="{{ r.percentual|default_if_none:'' }}"
+                                   placeholder="0" maxlength="6">
+                        </td>
+                        <td class="px-2 py-2"><button type="button" class="remover-rateio text-rose-600 text-xs">Remover</button></td>
+                    </tr>
+                    {% if form.rateios %}
+                    {% for r in form.rateios %}
+                    <tr class="linha-rateio border-t border-slate-100">
+                        <td class="px-2 py-2">
+                            <select name="rateio_empresa_id" class="w-full rounded border-slate-300 text-sm py-1.5">
+                                {% for e in empresas %}
+                                <option value="{{ e.id }}" {% if r.empresa_id == e.id or r.empresa_id == e.id|stringformat:"s" %}selected{% endif %}>{{ e.razao_social }}</option>
+                                {% endfor %}
+                            </select>
+                        </td>
+                        <td class="px-2 py-2">
+                            <div class="combobox-centro relative">
+                                <input type="text" class="combobox-input w-full rounded border-slate-300 text-sm py-1.5" placeholder="Buscar centro..." value="{{ r.centro_label|default:'' }}" autocomplete="off">
+                                <input type="hidden" name="rateio_centro_id" class="combobox-hidden" value="{{ r.centro_id|default:'' }}">
+                                <div class="combobox-dropdown absolute left-0 right-0 top-full mt-0.5 bg-white border border-slate-200 rounded shadow-lg z-[100] max-h-48 overflow-auto hidden"></div>
+                            </div>
+                        </td>
+                        <td class="px-2 py-2">
+                            <div class="combobox-plano relative">
+                                <input type="text" class="combobox-input w-full rounded border-slate-300 text-sm py-1.5" placeholder="Buscar plano..." value="{{ r.plano_label|default:'' }}" autocomplete="off">
+                                <input type="hidden" name="rateio_plano_id" class="combobox-hidden" value="{{ r.plano_id|default:'' }}">
+                                <div class="combobox-dropdown absolute left-0 right-0 top-full mt-0.5 bg-white border border-slate-200 rounded shadow-lg z-[100] max-h-48 overflow-auto hidden"></div>
+                            </div>
+                        </td>
+                        <td class="px-2 py-2">
+                            <input type="text" name="rateio_valor" value="{{ r.valor|default_if_none:'' }}" class="rateio-valor w-full rounded border-slate-300 text-sm py-1.5" placeholder="0,00">
+                        </td>
+                        <td class="px-2 py-2">
+                            <input type="text" class="rateio-percentual w-full rounded border-slate-300 text-sm py-1.5" placeholder="0" maxlength="6">
+                        </td>
+                        <td class="px-2 py-2"><button type="button" class="remover-rateio text-rose-600 text-xs">Remover</button></td>
+                    </tr>
+                    {% endfor %}
+                    {% endif %}
+                    {% for r in rateios_existentes %}
+                    <tr class="linha-rateio border-t border-slate-100">
+                        <td class="px-2 py-2">
+                            <select name="rateio_empresa_id" class="w-full rounded border-slate-300 text-sm py-1.5">
+                                {% for e in empresas %}
+                                <option value="{{ e.id }}" {% if r.empresa_id == e.id %}selected{% endif %}>{{ e.razao_social }}</option>
+                                {% endfor %}
+                            </select>
+                        </td>
+                        <td class="px-2 py-2">
+                            <div class="combobox-centro relative">
+                                <input type="text" class="combobox-input w-full rounded border-slate-300 text-sm py-1.5" placeholder="Buscar centro..." value="{{ r.centro_resultado.codigo }} - {{ r.centro_resultado.descricao }}" autocomplete="off">
+                                <input type="hidden" name="rateio_centro_id" class="combobox-hidden" value="{{ r.centro_resultado_id }}">
+                                <div class="combobox-dropdown absolute left-0 right-0 top-full mt-0.5 bg-white border border-slate-200 rounded shadow-lg z-[100] max-h-48 overflow-auto hidden"></div>
+                            </div>
+                        </td>
+                        <td class="px-2 py-2">
+                            <div class="combobox-plano relative">
+                                <input type="text" class="combobox-input w-full rounded border-slate-300 text-sm py-1.5" placeholder="Buscar plano..." value="{{ r.plano_conta.codigo }} - {{ r.plano_conta.descricao }}" autocomplete="off">
+                                <input type="hidden" name="rateio_plano_id" class="combobox-hidden" value="{{ r.plano_conta_id }}">
+                                <div class="combobox-dropdown absolute left-0 right-0 top-full mt-0.5 bg-white border border-slate-200 rounded shadow-lg z-[100] max-h-48 overflow-auto hidden"></div>
+                            </div>
+                        </td>
+                        <td class="px-2 py-2">
+                            <input type="text" name="rateio_valor" value="{{ r.valor }}" class="rateio-valor w-full rounded border-slate-300 text-sm py-1.5" placeholder="0,00">
+                        </td>
+                        <td class="px-2 py-2">
+                            <input type="text" class="rateio-percentual w-full rounded border-slate-300 text-sm py-1.5" placeholder="0" maxlength="6">
+                        </td>
+                        <td class="px-2 py-2"><button type="button" class="remover-rateio text-rose-600 text-xs">Remover</button></td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            <div class="mt-4 flex justify-end">
+                <button type="button" id="modal-rateio-ok" class="px-4 py-2 rounded-md bg-sky-600 text-white text-sm">Concluído</button>
+            </div>
+        </div>
+    </div>
+    <div id="rateio-combobox-dropdown" class="fixed z-[200] bg-white border border-slate-200 rounded shadow-lg max-h-48 overflow-auto hidden" style="min-width:200px"></div>
+    </form>
+</div>
+
+<script>
+(function() {
+    var form = document.getElementById("form-conta-pagar");
+    var centrosData = [];
+    var planosData = [];
+    try {
+        var el = document.getElementById("centros-data");
+        if (el) centrosData = JSON.parse(el.textContent);
+    } catch (e) {}
+    try {
+        var el2 = document.getElementById("planos-data");
+        if (el2) planosData = JSON.parse(el2.textContent);
+    } catch (e) {}
+
+    function parseValor(s) {
+        if (!s || !s.trim()) return 0;
+        var t = s.trim().replace(/\./g, "").replace(",", ".");
+        var n = parseFloat(t);
+        return isNaN(n) ? 0 : n;
+    }
+
+    function formatarCompetencia(valor) {
+        if (!valor) return "";
+        var digitos = String(valor).replace(/\D/g, "").slice(0, 6); // MMYYYY
+        if (digitos.length <= 2) return digitos;
+        return digitos.slice(0, 2) + "/" + digitos.slice(2);
+    }
+
+    var campoCompetencia = form ? form.querySelector('input[name="competencia"]') : null;
+    var campoDataEmissao = form ? form.querySelector('input[name="data_emissao"]') : null;
+    if (campoCompetencia) {
+        campoCompetencia.addEventListener("input", function() {
+            var pos = campoCompetencia.selectionStart;
+            var antes = campoCompetencia.value;
+            var depois = formatarCompetencia(antes);
+            campoCompetencia.value = depois;
+        });
+        // Normaliza valor inicial (ex.: vindo do backend sem máscara)
+        if (campoCompetencia.value) {
+            campoCompetencia.value = formatarCompetencia(campoCompetencia.value);
+        }
+    }
+    if (campoDataEmissao && campoCompetencia) {
+        campoDataEmissao.addEventListener("change", function() {
+            if (!campoCompetencia.value || !campoCompetencia.value.trim()) {
+                var val = campoDataEmissao.value;
+                if (val && val.length >= 7) {
+                    var parts = val.split("-");
+                    if (parts.length === 3) campoCompetencia.value = formatarCompetencia(parts[1] + parts[0]);
+                }
+            }
+        });
+    }
+
+    // ---- Vencimentos ----
+    var tbody = document.getElementById("tbody-vencimentos");
+    var btnAdicionar = document.getElementById("btn-adicionar-vencimento");
+    var valorTotalEl = form ? form.querySelector('input[name="valor_total"]') : null;
+    var modalVenc = document.getElementById("modal-vencimentos");
+    var modalVencTotal = document.getElementById("modal-vencimentos-total");
+
+    function linhaVencimentoNova() {
+        var tr = document.createElement("tr");
+        tr.className = "linha-vencimento border-t border-slate-100";
+        tr.innerHTML = '<td class="px-3 py-2"><input type="hidden" name="vencimento_id" value="">' +
+            '<input type="date" name="data_vencimento" class="w-full rounded border-slate-300 text-sm"></td>' +
+            '<td class="px-3 py-2"><input type="text" name="valor" class="valor-vencimento w-full rounded border-slate-300 text-sm" placeholder="0,00"></td>' +
+            '<td class="px-3 py-2"><button type="button" class="remover-vencimento text-rose-600 text-xs">Remover</button></td>';
+        return tr;
+    }
+
+    function atualizarTotalVencimentos() {
+        var totais = 0;
+        tbody.querySelectorAll(".linha-vencimento .valor-vencimento").forEach(function(inp) {
+            totais += parseValor(inp.value);
+        });
+        // Soma também os vencimentos existentes (não editáveis), usando data-valor
+        tbody.querySelectorAll("td.valor-venc-existente").forEach(function(td) {
+            var raw = td.dataset.valor || "";
+            var n = parseFloat(raw.replace(",", "."));
+            if (!isNaN(n)) totais += n;
+        });
+        var str = totais.toFixed(2).replace(".", ",");
+        // Mostra a soma apenas dentro do modal; o valor total é digitado pelo usuário.
+        if (modalVencTotal) modalVencTotal.textContent = str;
+        atualizarContadorVencimentos();
+    }
+
+    function atualizarContadorVencimentos() {
+        var n = 0;
+        // Conta apenas vencimentos com valor preenchido (> 0)
+        tbody.querySelectorAll("tr.linha-vencimento").forEach(function(tr) {
+            var inp = tr.querySelector(".valor-vencimento");
+            if (!inp) return;
+            if (parseValor(inp.value) > 0) n += 1;
+        });
+        // Vencimentos existentes (já baixados/confirmados) contam sempre
+        n += tbody.querySelectorAll("tr.linha-vencimento-existente").length;
+        var el = document.getElementById("contador-vencimentos");
+        if (el) el.textContent = n;
+    }
+
+    if (btnAdicionar) {
+        btnAdicionar.addEventListener("click", function() {
+            // Antes de adicionar, verifica se a soma dos vencimentos já atingiu o valor total da conta
+            if (valorTotalEl) {
+                var totalConta = parseValor(valorTotalEl.value);
+                if (totalConta > 0) {
+                    var somaAtual = 0;
+                    tbody.querySelectorAll("tr.linha-vencimento .valor-vencimento").forEach(function(inp) {
+                        somaAtual += parseValor(inp.value);
+                    });
+                    if (somaAtual >= totalConta) {
+                        alert("Os vencimentos já totalizam o valor total da conta.");
+                        return;
+                    }
+                }
+            }
+
+            tbody.appendChild(linhaVencimentoNova());
+            tbody.querySelectorAll(".valor-vencimento").forEach(function(inp) {
+                if (!inp._b) { inp._b = true; inp.addEventListener("input", atualizarTotalVencimentos); }
+            });
+            tbody.querySelectorAll(".remover-vencimento").forEach(function(btn) {
+                if (!btn._b) {
+                    btn._b = true;
+                    btn.addEventListener("click", function() {
+                        var row = btn.closest("tr");
+                        if (row && row.classList.contains("linha-vencimento")) { row.remove(); atualizarTotalVencimentos(); }
+                    });
+                }
+            });
+            atualizarTotalVencimentos();
+        });
+    }
+    tbody.addEventListener("input", function(e) {
+        if (e.target.classList.contains("valor-vencimento")) atualizarTotalVencimentos();
+    });
+    tbody.addEventListener("blur", function(e) {
+        if (!e.target.classList.contains("valor-vencimento")) return;
+        if (!valorTotalEl) return;
+        var totalConta = parseValor(valorTotalEl.value);
+        if (totalConta <= 0) return;
+
+        var soma = 0;
+        var hasEmpty = false;
+        tbody.querySelectorAll("tr.linha-vencimento .valor-vencimento").forEach(function(inp) {
+            var v = parseValor(inp.value);
+            if (v <= 0) {
+                hasEmpty = true;
+            } else {
+                soma += v;
+            }
+        });
+        atualizarTotalVencimentos();
+        // Se a soma dos vencimentos for menor que o valor total e não houver linha vazia,
+        // cria automaticamente uma nova linha e foca na data.
+        if (soma > 0 && soma < totalConta && !hasEmpty) {
+            var nova = linhaVencimentoNova();
+            tbody.appendChild(nova);
+            atualizarTotalVencimentos();
+            var dataInput = nova.querySelector("input[name='data_vencimento']");
+            if (dataInput) dataInput.focus();
+        }
+    }, true);
+    tbody.addEventListener("click", function(e) {
+        if (e.target.classList.contains("remover-vencimento")) {
+            var row = e.target.closest("tr");
+            if (row && row.classList.contains("linha-vencimento")) { row.remove(); atualizarTotalVencimentos(); }
+        }
+    });
+
+    document.getElementById("btn-modal-vencimentos").addEventListener("click", function() {
+        if (!valorTotalEl || parseValor(valorTotalEl.value) <= 0) {
+            alert("Preencha o valor total da conta antes de gerenciar vencimentos.");
+            return;
+        }
+        atualizarTotalVencimentos();
+        modalVenc.classList.remove("hidden");
+        // Foca na primeira data de vencimento ao abrir o modal
+        setTimeout(function() {
+            var firstDate = tbody.querySelector("tr.linha-vencimento input[name='data_vencimento']");
+            if (firstDate) firstDate.focus();
+        }, 50);
+    });
+    function fecharModalVencimentos() {
+        modalVenc.classList.add("hidden");
+        setTimeout(function() {
+            var btn = document.getElementById("btn-modal-rateio");
+            if (btn) btn.focus();
+        }, 0);
+    }
+    document.getElementById("modal-vencimentos-fechar").addEventListener("click", fecharModalVencimentos);
+    document.getElementById("modal-vencimentos-backdrop").addEventListener("click", fecharModalVencimentos);
+    document.getElementById("modal-vencimentos-ok").addEventListener("click", function() {
+        atualizarTotalVencimentos();
+        fecharModalVencimentos();
+    });
+
+    {% if not conta and not form.vencimentos %}
+    if (tbody.querySelectorAll(".linha-vencimento").length === 0) {
+        tbody.appendChild(linhaVencimentoNova());
+        atualizarTotalVencimentos();
+    }
+    {% endif %}
+    atualizarTotalVencimentos();
+
+    // ---- Rateio: combobox com dropdown único (funciona em qualquer linha) ----
+    var modalRateio = document.getElementById("modal-rateio");
+    var sharedDropdown = document.getElementById("rateio-combobox-dropdown");
+    var comboboxActive = null;
+
+    function showSharedDropdown(input, hidden, data) {
+        if (!sharedDropdown || !data) return;
+        var filter = (input && input.value) ? input.value.trim().toLowerCase() : "";
+        var list = (data || []).filter(function(item) {
+            return !filter || (item.label && item.label.toLowerCase().indexOf(filter) >= 0);
+        });
+        sharedDropdown.innerHTML = "";
+        list.slice(0, 50).forEach(function(item) {
+            var div = document.createElement("div");
+            div.className = "px-3 py-2 hover:bg-slate-100 cursor-pointer text-sm";
+            div.textContent = item.label || "";
+            div.dataset.id = String(item.id);
+            div.dataset.label = item.label || "";
+            div.addEventListener("mousedown", function(ev) { ev.preventDefault(); });
+            div.addEventListener("click", function() {
+                if (comboboxActive) {
+                    comboboxActive.hidden.value = item.id;
+                    comboboxActive.input.value = item.label || "";
+                }
+                sharedDropdown.classList.add("hidden");
+                comboboxActive = null;
+            });
+            sharedDropdown.appendChild(div);
+        });
+        if (list.length > 0 && input) {
+            var rect = input.getBoundingClientRect();
+            sharedDropdown.style.width = Math.max(rect.width, 200) + "px";
+            sharedDropdown.style.left = rect.left + "px";
+            sharedDropdown.style.top = (rect.bottom + 4) + "px";
+            sharedDropdown.classList.remove("hidden");
+            comboboxActive = { input: input, hidden: hidden };
+        } else {
+            sharedDropdown.classList.add("hidden");
+            comboboxActive = null;
+        }
+    }
+
+    function bindComboboxes() {
+        if (!modalRateio || !sharedDropdown) return;
+        if (modalRateio._comboboxBound) return;
+        modalRateio._comboboxBound = true;
+        modalRateio.addEventListener("focusin", function(e) {
+            var input = e.target;
+            if (!input.classList.contains("combobox-input")) return;
+            var container = input.closest(".combobox-centro, .combobox-plano");
+            if (!container || container.closest("#rateio-row-template")) return;
+            var hidden = container.querySelector(".combobox-hidden");
+            if (!hidden) return;
+            var data = container.classList.contains("combobox-centro") ? centrosData : planosData;
+            showSharedDropdown(input, hidden, data);
+        });
+        modalRateio.addEventListener("input", function(e) {
+            var input = e.target;
+            if (!input.classList.contains("combobox-input")) return;
+            var container = input.closest(".combobox-centro, .combobox-plano");
+            if (!container || container.closest("#rateio-row-template")) return;
+            var hidden = container.querySelector(".combobox-hidden");
+            if (!hidden) return;
+            var data = container.classList.contains("combobox-centro") ? centrosData : planosData;
+            showSharedDropdown(input, hidden, data);
+        });
+        modalRateio.addEventListener("focusout", function(e) {
+            setTimeout(function() {
+                if (sharedDropdown && !sharedDropdown.contains(document.activeElement) && comboboxActive && !comboboxActive.input.contains(document.activeElement)) {
+                    sharedDropdown.classList.add("hidden");
+                    comboboxActive = null;
+                }
+            }, 200);
+        });
+        document.addEventListener("click", function(e) {
+            if (sharedDropdown && !sharedDropdown.contains(e.target) && comboboxActive && !comboboxActive.input.contains(e.target)) {
+                sharedDropdown.classList.add("hidden");
+                comboboxActive = null;
+            }
+        });
+    }
+
+    function getTotalContaParaRateio() {
+        var el = form ? form.querySelector('input[name="valor_total"]') : null;
+        return el ? parseValor(el.value) : 0;
+    }
+
+    function bindRateioValorPercentual() {
+        var total = getTotalContaParaRateio();
+        tbodyRateio.querySelectorAll("tr.linha-rateio").forEach(function(tr) {
+            if (tr.id === "rateio-row-template") return;
+            var valorInp = tr.querySelector(".rateio-valor");
+            var pctInp = tr.querySelector(".rateio-percentual");
+            if (!valorInp || !pctInp) return;
+            if (total > 0 && valorInp.value && !pctInp.value) {
+                var v = parseValor(valorInp.value);
+                pctInp.value = (v / total * 100).toFixed(2).replace(".", ",");
+            }
+            if (valorInp._rateioBound) return;
+            valorInp._rateioBound = true;
+            pctInp._rateioBound = true;
+            valorInp.addEventListener("input", function() {
+                var v = parseValor(valorInp.value);
+                total = getTotalContaParaRateio();
+                if (total > 0) pctInp.value = (v / total * 100).toFixed(2).replace(".", ",");
+                else pctInp.value = "";
+                atualizarContadorRateio();
+            });
+            pctInp.addEventListener("input", function() {
+                var p = parseValor(pctInp.value);
+                total = getTotalContaParaRateio();
+                if (total > 0) valorInp.value = (p / 100 * total).toFixed(2).replace(".", ",");
+                else valorInp.value = "";
+                atualizarContadorRateio();
+            });
+        });
+    }
+
+    function atualizarContadorRateio() {
+        var trs = document.querySelectorAll("#tbody-rateio tr.linha-rateio");
+        var n = 0;
+        trs.forEach(function(tr) {
+            if (tr.id === "rateio-row-template") return;
+            var valInp = tr.querySelector(".rateio-valor");
+            if (!valInp) return;
+            if (parseValor(valInp.value) > 0) n++;
+        });
+        var el = document.getElementById("contador-rateio");
+        if (el) el.textContent = n;
+    }
+
+    // ---- Rateio: adicionar linha ----
+    var tbodyRateio = document.getElementById("tbody-rateio");
+    var templateRateio = document.getElementById("rateio-row-template");
+    var btnAdicionarRateio = document.getElementById("btn-adicionar-rateio");
+
+    if (btnAdicionarRateio && templateRateio) {
+        btnAdicionarRateio.addEventListener("click", function() {
+            var total = getTotalContaParaRateio();
+            if (total > 0) {
+                var linhas = tbodyRateio.querySelectorAll("tr.linha-rateio");
+                var soma = 0;
+                linhas.forEach(function(tr) {
+                    if (tr.id === "rateio-row-template") return;
+                    var valInp = tr.querySelector(".rateio-valor");
+                    var v = valInp ? parseValor(valInp.value) : 0;
+                    if (v > 0) soma += v;
+                });
+                // Se a soma já for maior ou igual ao total, não permite novo rateio
+                if (soma >= total) {
+                    alert("Os rateios já totalizam o valor total da conta.");
+                    return;
+                }
+                // Se já houver rateios e a soma for menor que o total, criar linha com o restante
+                if (soma > 0 && soma < total) {
+                    var restante = total - soma;
+                    var auto = templateRateio.cloneNode(true);
+                    auto.id = "";
+                    auto.style.display = "";
+                    auto.classList.add("linha-rateio");
+                    tbodyRateio.appendChild(auto);
+                    var valorInp = auto.querySelector(".rateio-valor");
+                    var pctInp = auto.querySelector(".rateio-percentual");
+                    if (valorInp) valorInp.value = restante.toFixed(2).replace(".", ",");
+                    if (pctInp) pctInp.value = (restante / total * 100).toFixed(2).replace(".", ",");
+                    bindComboboxes();
+                    bindRateioValorPercentual();
+                    atualizarContadorRateio();
+                    return;
+                }
+            }
+            // Caso contrário, adiciona uma linha em branco
+            var clone = templateRateio.cloneNode(true);
+            clone.id = "";
+            clone.style.display = "";
+            clone.classList.add("linha-rateio");
+            tbodyRateio.appendChild(clone);
+            bindComboboxes();
+            bindRateioValorPercentual();
+            atualizarContadorRateio();
+        });
+    }
+
+    // Para novo contas a pagar, garante ao menos uma linha de rateio vazia na tabela
+    {% if not conta and not form.rateios and not rateios_existentes %}
+    if (tbodyRateio && templateRateio && tbodyRateio.querySelectorAll("tr.linha-rateio").length === 0) {
+        var firstEmpty = templateRateio.cloneNode(true);
+        firstEmpty.id = "";
+        firstEmpty.style.display = "";
+        firstEmpty.classList.add("linha-rateio");
+        tbodyRateio.appendChild(firstEmpty);
+    }
+    {% endif %}
+    tbodyRateio.addEventListener("click", function(e) {
+        if (e.target.classList.contains("remover-rateio")) {
+            var row = e.target.closest("tr");
+            if (row && row.classList.contains("linha-rateio") && row.id !== "rateio-row-template") {
+                row.remove();
+                atualizarContadorRateio();
+            }
+        }
+    });
+
+    // Auto completar rateio restante ao sair do percentual (novo e edição)
+    tbodyRateio.addEventListener("blur", function(e) {
+        if (!e.target.classList.contains("rateio-percentual")) return;
+        var total = getTotalContaParaRateio();
+        if (total <= 0) return;
+
+        var soma = 0;
+        var hasEmpty = false;
+        var linhas = tbodyRateio.querySelectorAll("tr.linha-rateio");
+        linhas.forEach(function(tr) {
+            if (tr.id === "rateio-row-template") return;
+            var valInp = tr.querySelector(".rateio-valor");
+            var v = valInp ? parseValor(valInp.value) : 0;
+            if (v <= 0) {
+                hasEmpty = true;
+            } else {
+                soma += v;
+            }
+        });
+
+        if (soma <= 0 || soma >= total || hasEmpty) return;
+
+        var restante = total - soma;
+        var clone = templateRateio.cloneNode(true);
+        clone.id = "";
+        clone.style.display = "";
+        clone.classList.add("linha-rateio");
+        tbodyRateio.appendChild(clone);
+        var valorInp = clone.querySelector(".rateio-valor");
+        var pctInp = clone.querySelector(".rateio-percentual");
+        if (valorInp) valorInp.value = restante.toFixed(2).replace(".", ",");
+        if (pctInp) pctInp.value = (restante / total * 100).toFixed(2).replace(".", ",");
+        bindComboboxes();
+        bindRateioValorPercentual();
+        atualizarContadorRateio();
+        var centroInput = clone.querySelector(".combobox-centro .combobox-input");
+        if (centroInput) setTimeout(function() { centroInput.focus(); }, 0);
+    }, true);
+
+    document.getElementById("btn-modal-rateio").addEventListener("click", function() {
+        if (!valorTotalEl || parseValor(valorTotalEl.value) <= 0) {
+            alert("Preencha o valor total da conta antes de gerenciar rateio.");
+            return;
+        }
+        document.getElementById("modal-rateio").classList.remove("hidden");
+        // Garante ao menos uma linha de rateio visível ao abrir o modal
+        if (tbodyRateio && templateRateio) {
+            var temLinhaReal = false;
+            tbodyRateio.querySelectorAll("tr.linha-rateio").forEach(function(tr) {
+                if (tr.id !== "rateio-row-template") temLinhaReal = true;
+            });
+            if (!temLinhaReal) {
+                var first = templateRateio.cloneNode(true);
+                first.id = "";
+                first.style.display = "";
+                first.classList.add("linha-rateio");
+                tbodyRateio.appendChild(first);
+            }
+        }
+        bindComboboxes();
+        bindRateioValorPercentual();
+        // Foca no primeiro centro de resultado ao abrir o modal
+        setTimeout(function() {
+            if (!tbodyRateio) return;
+            var firstCentroInput = tbodyRateio.querySelector(".linha-rateio .combobox-centro .combobox-input");
+            if (firstCentroInput) firstCentroInput.focus();
+        }, 50);
+
+        var total = getTotalContaParaRateio();
+
+        // Em novo lançamento, se ainda não houver valor rateado, preenche a 1ª linha com 100% do valor
+        {% if not conta %}
+        if (total > 0 && tbodyRateio) {
+            var linhasNovo = tbodyRateio.querySelectorAll("tr.linha-rateio");
+            var somaNovo = 0;
+            linhasNovo.forEach(function(tr) {
+                if (tr.id === "rateio-row-template") return;
+                var valInp = tr.querySelector(".rateio-valor");
+                var v = valInp ? parseValor(valInp.value) : 0;
+                if (v > 0) somaNovo += v;
+            });
+            if (somaNovo === 0 && linhasNovo.length > 0) {
+                var firstNovo = linhasNovo[0];
+                if (firstNovo && firstNovo.id !== "rateio-row-template") {
+                    var valorInpNovo = firstNovo.querySelector(".rateio-valor");
+                    var pctInpNovo = firstNovo.querySelector(".rateio-percentual");
+                    if (valorInpNovo) valorInpNovo.value = total.toFixed(2).replace(".", ",");
+                    if (pctInpNovo) pctInpNovo.value = "100,00";
+                    bindRateioValorPercentual();
+                    atualizarContadorRateio();
+                }
+            }
+        }
+        {% else %}
+        // Em edição: se não houver nenhuma linha de rateio, cria uma com 100% e foca na empresa
+        if (total > 0 && tbodyRateio) {
+            var linhasEdit = tbodyRateio.querySelectorAll("tr.linha-rateio");
+            var temLinhaReal = false;
+            linhasEdit.forEach(function(tr) {
+                if (tr.id !== "rateio-row-template") temLinhaReal = true;
+            });
+            if (!temLinhaReal) {
+                var linha = templateRateio.cloneNode(true);
+                linha.id = "";
+                linha.style.display = "";
+                linha.classList.add("linha-rateio");
+                tbodyRateio.appendChild(linha);
+                var valorInpEdit = linha.querySelector(".rateio-valor");
+                var pctInpEdit = linha.querySelector(".rateio-percentual");
+                if (valorInpEdit) valorInpEdit.value = total.toFixed(2).replace(".", ",");
+                if (pctInpEdit) pctInpEdit.value = "100,00";
+                bindComboboxes();
+                bindRateioValorPercentual();
+                atualizarContadorRateio();
+                var empSelectEdit = linha.querySelector("select[name='rateio_empresa_id']");
+                if (empSelectEdit) empSelectEdit.focus();
+            }
+        }
+        {% endif %}
+    });
+    function fecharModalRateio() {
+        document.getElementById("modal-rateio").classList.add("hidden");
+        if (sharedDropdown) sharedDropdown.classList.add("hidden");
+        comboboxActive = null;
+    }
+    document.getElementById("modal-rateio-fechar").addEventListener("click", fecharModalRateio);
+    document.getElementById("modal-rateio-backdrop").addEventListener("click", fecharModalRateio);
+    document.getElementById("modal-rateio-ok").addEventListener("click", fecharModalRateio);
+
+    form.addEventListener("submit", function(e) {
+        var rows = tbodyRateio.querySelectorAll("tr.linha-rateio");
+        for (var i = 0; i < rows.length; i++) {
+            var tr = rows[i];
+            if (tr.id === "rateio-row-template") continue;
+            var empSelect = tr.querySelector("select[name='rateio_empresa_id']");
+            var centroHidden = tr.querySelector(".combobox-centro input.combobox-hidden");
+            var planoHidden = tr.querySelector(".combobox-plano input.combobox-hidden");
+            var valorInp = tr.querySelector(".rateio-valor");
+            var empId = empSelect ? (empSelect.value || "").trim() : "";
+            var centroId = centroHidden ? (centroHidden.value || "").trim() : "";
+            var planoId = planoHidden ? (planoHidden.value || "").trim() : "";
+            var val = valorInp ? parseValor(valorInp.value) : 0;
+            if (val > 0 && (!empId || !centroId || !planoId)) {
+                e.preventDefault();
+                alert("Em cada linha de rateio com valor, preencha empresa, centro de resultado e plano de contas.");
+                return;
+            }
+        }
+    });
+
+    bindComboboxes();
+    bindRateioValorPercentual();
+    atualizarContadorRateio();
+})();
+</script>
+{% endblock %}

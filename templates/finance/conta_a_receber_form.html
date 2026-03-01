@@ -1,0 +1,803 @@
+{% extends "base.html" %}
+
+{% block title %}{% if conta %}Editar conta a receber{% else %}Nova conta a receber{% endif %} · Movimentos{% endblock %}
+
+{% block content %}
+{{ centros_para_js|json_script:"centros-data" }}
+{{ planos_para_js|json_script:"planos-data" }}
+<div class="max-w-2xl mx-auto">
+    <h1 class="text-2xl font-semibold text-slate-800 mb-2">
+        {% if conta %}Editar conta a receber{% else %}Nova conta a receber{% endif %}
+    </h1>
+    <p class="text-sm text-slate-500 mb-4">Lançamento de conta a receber. Utilize a empresa selecionada no menu ou escolha outra do contexto.</p>
+
+    <form method="post" id="form-conta-receber" class="bg-white rounded-xl shadow-sm border border-slate-200 p-6 space-y-4">
+        {% csrf_token %}
+
+        <div class="space-y-1">
+            <label class="block text-sm font-medium text-slate-700">Empresa</label>
+            <select name="empresa_id" required
+                    class="w-full rounded-md border-slate-300 shadow-sm focus:border-sky-500 focus:ring-sky-500">
+                {% for e in empresas %}
+                    <option value="{{ e.id }}"
+                            {% if form.empresa_id %}{% if form.empresa_id == e.id %}selected{% endif %}
+                            {% elif conta and conta.empresa_id == e.id %}selected{% endif %}>
+                        {{ e.razao_social }}
+                    </option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div class="space-y-1">
+            <label class="block text-sm font-medium text-slate-700">Cliente</label>
+            <select name="pessoa_id" required
+                    class="w-full rounded-md border-slate-300 shadow-sm focus:border-sky-500 focus:ring-sky-500">
+                <option value="">Selecione o cliente</option>
+                {% for p in pessoas_clientes %}
+                    <option value="{{ p.id }}"
+                            {% if form.pessoa_id %}{% if form.pessoa_id == p.id %}selected{% endif %}
+                            {% elif conta and conta.pessoa_id == p.id %}selected{% endif %}>
+                        {{ p.nome_razao }}
+                    </option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div class="space-y-1">
+            <label class="block text-sm font-medium text-slate-700">Descrição</label>
+            <input type="text" name="descricao" required
+                   value="{{ form.descricao|default_if_none:'' }}"
+                   class="w-full rounded-md border-slate-300 shadow-sm focus:border-sky-500 focus:ring-sky-500"
+                   placeholder="Ex.: Venda de serviços">
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div class="space-y-1">
+                <label class="block text-sm font-medium text-slate-700">Tipo de documento</label>
+                <select name="tipo_documento_id" required
+                        class="w-full rounded-md border-slate-300 shadow-sm focus:border-sky-500 focus:ring-sky-500">
+                    <option value="">Selecione</option>
+                    {% for td in tipos_documento %}
+                        <option value="{{ td.id }}"
+                                {% if form.tipo_documento_id == td.id %}selected{% endif %}
+                                {% if conta and not form.tipo_documento_id and conta.tipo_documento_id == td.id %}selected{% endif %}>
+                            {{ td.nome }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="space-y-1">
+                <label class="block text-sm font-medium text-slate-700">Competência (MM/AAAA)</label>
+                <input type="text" name="competencia"
+                       value="{{ form.competencia|default_if_none:'' }}"
+                       class="w-full rounded-md border-slate-300 shadow-sm focus:border-sky-500 focus:ring-sky-500"
+                       placeholder="01/2026">
+            </div>
+            <div class="space-y-1">
+                <label class="block text-sm font-medium text-slate-700">Data de emissão</label>
+                <input type="date" name="data_emissao" required
+                       value="{{ form.data_emissao|default_if_none:'' }}"
+                       class="w-full rounded-md border-slate-300 shadow-sm focus:border-sky-500 focus:ring-sky-500">
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div class="space-y-1">
+                <label class="block text-sm font-medium text-slate-700">Valor total (R$)</label>
+                <input type="text" name="valor_total" required
+                       value="{{ form.valor_total|default_if_none:'' }}"
+                       class="w-full rounded-md border-slate-300 shadow-sm focus:border-sky-500 focus:ring-sky-500"
+                       placeholder="0,00">
+                <p class="text-xs text-slate-500">Deve ser igual à soma dos vencimentos e dos rateios.</p>
+            </div>
+            <div class="space-y-1">
+                <label class="block text-sm font-medium text-slate-700">Status</label>
+                <select name="status" disabled
+                        class="w-full rounded-md border-slate-300 shadow-sm bg-slate-100 text-slate-700 cursor-not-allowed">
+                    {% for valor, label in status_choices %}
+                        <option value="{{ valor }}"
+                                {% if form.status|default:'A' == valor %}selected{% endif %}>
+                            {{ label }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+        </div>
+
+        <div class="flex flex-wrap gap-3 pt-2">
+            <button type="button" id="btn-modal-vencimentos"
+                    class="px-4 py-2 rounded-md border border-slate-300 text-slate-700 text-sm font-medium hover:bg-slate-50">
+                📅 Gerenciar vencimentos (<span id="contador-vencimentos">0</span>)
+            </button>
+            <button type="button" id="btn-modal-rateio"
+                    class="px-4 py-2 rounded-md border border-slate-300 text-slate-700 text-sm font-medium hover:bg-slate-50">
+                📊 Gerenciar rateio (<span id="contador-rateio">0</span>)
+            </button>
+        </div>
+
+        <div class="flex justify-end gap-2 pt-4">
+            <a href="{% url 'movimentos-contas-a-receber' %}"
+               class="px-4 py-2 text-sm rounded-md border border-slate-300 text-slate-700 hover:bg-slate-50">
+                Cancelar
+            </a>
+            <button type="submit"
+                    class="px-4 py-2 text-sm rounded-md bg-sky-600 text-white font-medium hover:bg-sky-700">
+                Salvar
+            </button>
+        </div>
+
+        <!-- Modal Vencimentos (mesma estrutura de contas a pagar) -->
+        <div id="modal-vencimentos" class="fixed inset-0 z-50 hidden" aria-hidden="true">
+            <div class="fixed inset-0 bg-black/50" id="modal-vencimentos-backdrop"></div>
+            <div class="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-lg max-h-[90vh] overflow-auto bg-white rounded-xl shadow-xl border border-slate-200 p-6">
+                <div class="flex justify-between items-center mb-4">
+                    <h2 class="text-lg font-semibold text-slate-800">Vencimentos</h2>
+                    <button type="button" id="modal-vencimentos-fechar" class="text-slate-400 hover:text-slate-600">✕</button>
+                </div>
+                <p class="text-xs text-slate-500 mb-3">Adicione ao menos um vencimento. O valor total será a soma dos valores.</p>
+                <div class="mb-3">
+                    <button type="button" id="btn-adicionar-vencimento" class="text-sm text-sky-600 hover:text-sky-700 font-medium">+ Adicionar vencimento</button>
+                </div>
+                <table class="min-w-full text-sm border border-slate-200 rounded-lg overflow-hidden">
+                    <thead class="bg-slate-50">
+                        <tr>
+                            <th class="px-3 py-2 text-left text-slate-600">Data vencimento</th>
+                            <th class="px-3 py-2 text-left text-slate-600">Valor (R$)</th>
+                            <th class="px-3 py-2 w-20">Ação</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tbody-vencimentos">
+                        {% for v in form.vencimentos %}
+                        <tr class="linha-vencimento border-t border-slate-100">
+                            <td class="px-3 py-2">
+                                <input type="hidden" name="vencimento_id" value="{{ v.id|default_if_none:'' }}">
+                                <input type="date" name="data_vencimento" value="{{ v.data|default_if_none:'' }}"
+                                       class="w-full rounded border-slate-300 text-sm">
+                            </td>
+                            <td class="px-3 py-2">
+                                <input type="text" name="valor" value="{{ v.valor|default_if_none:'' }}"
+                                       class="valor-vencimento w-full rounded border-slate-300 text-sm" placeholder="0,00">
+                            </td>
+                            <td class="px-3 py-2">
+                                <button type="button" class="remover-vencimento text-rose-600 text-xs">Remover</button>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                <p class="text-sm text-slate-600 mt-2">
+                    Total: R$ <strong id="modal-vencimentos-total">0,00</strong>
+                </p>
+                <div class="mt-4 flex justify-end">
+                    <button type="button" id="modal-vencimentos-ok"
+                            class="px-4 py-2 rounded-md bg-sky-600 text-white text-sm">
+                        Concluído
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Modal Rateio (mesma estrutura de contas a pagar) -->
+        <div id="modal-rateio" class="fixed inset-0 z-50 hidden" aria-hidden="true">
+            <div class="fixed inset-0 bg-black/50" id="modal-rateio-backdrop"></div>
+            <div class="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-4xl max-h-[90vh] overflow-auto bg-white rounded-xl shadow-xl border border-slate-200 p-6">
+                <div class="flex justify-between items-center mb-4">
+                    <h2 class="text-lg font-semibold text-slate-800">Rateio</h2>
+                    <button type="button" id="modal-rateio-fechar" class="text-slate-400 hover:text-slate-600">✕</button>
+                </div>
+                <p class="text-xs text-slate-500 mb-3">Distribua o valor por estabelecimento, centro de resultado e plano de contas. Digite para buscar centro e plano.</p>
+                <div class="mb-3">
+                    <button type="button" id="btn-adicionar-rateio"
+                            class="text-sm text-sky-600 hover:text-sky-700 font-medium">
+                        + Adicionar rateio
+                    </button>
+                </div>
+                <table class="min-w-full text-sm border border-slate-200 rounded-lg overflow-hidden">
+                    <thead class="bg-slate-50">
+                        <tr>
+                            <th class="px-2 py-2 text-left text-slate-600">Empresa</th>
+                            <th class="px-2 py-2 text-left text-slate-600">Centro de resultado</th>
+                            <th class="px-2 py-2 text-left text-slate-600">Plano de contas</th>
+                            <th class="px-2 py-2 text-left text-slate-600">Valor (R$)</th>
+                            <th class="px-2 py-2 text-left text-slate-600 w-24">%</th>
+                            <th class="px-2 py-2 w-16">Ação</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tbody-rateio">
+                        <tr id="rateio-row-template" class="linha-rateio border-t border-slate-100" style="display:none">
+                            <td class="px-2 py-2">
+                                <select name="rateio_empresa_id" class="w-full rounded border-slate-300 text-sm py-1.5">
+                                    {% for e in empresas %}
+                                    <option value="{{ e.id }}">{{ e.razao_social }}</option>
+                                    {% endfor %}
+                                </select>
+                            </td>
+                            <td class="px-2 py-2">
+                                <div class="combobox-centro relative">
+                                    <input type="text" class="combobox-input w-full rounded border-slate-300 text-sm py-1.5"
+                                           placeholder="Buscar centro..." autocomplete="off">
+                                    <input type="hidden" name="rateio_centro_id" class="combobox-hidden">
+                                    <div class="combobox-dropdown absolute left-0 right-0 top-full mt-0.5 bg-white border border-slate-200 rounded shadow-lg z-[100] max-h-48 overflow-auto hidden"></div>
+                                </div>
+                            </td>
+                            <td class="px-2 py-2">
+                                <div class="combobox-plano relative">
+                                    <input type="text" class="combobox-input w-full rounded border-slate-300 text-sm py-1.5"
+                                           placeholder="Buscar plano..." autocomplete="off">
+                                    <input type="hidden" name="rateio_plano_id" class="combobox-hidden">
+                                    <div class="combobox-dropdown absolute left-0 right-0 top-full mt-0.5 bg-white border border-slate-200 rounded shadow-lg z-[100] max-h-48 overflow-auto hidden"></div>
+                                </div>
+                            </td>
+                            <td class="px-2 py-2">
+                                <input type="text" name="rateio_valor"
+                                       class="rateio-valor w-full rounded border-slate-300 text-sm py-1.5"
+                                       placeholder="0,00">
+                            </td>
+                            <td class="px-2 py-2">
+                                <input type="text" class="rateio-percentual w-full rounded border-slate-300 text-sm py-1.5"
+                                       placeholder="0" maxlength="6">
+                            </td>
+                            <td class="px-2 py-2">
+                                <button type="button" class="remover-rateio text-rose-600 text-xs">Remover</button>
+                            </td>
+                        </tr>
+                        {% if form.rateios %}
+                        {% for r in form.rateios %}
+                        <tr class="linha-rateio border-t border-slate-100">
+                            <td class="px-2 py-2">
+                                <select name="rateio_empresa_id" class="w-full rounded border-slate-300 text-sm py-1.5">
+                                    {% for e in empresas %}
+                                    <option value="{{ e.id }}" {% if r.empresa_id == e.id %}selected{% endif %}>{{ e.razao_social }}</option>
+                                    {% endfor %}
+                                </select>
+                            </td>
+                            <td class="px-2 py-2">
+                                <div class="combobox-centro relative">
+                                    <input type="text" class="combobox-input w-full rounded border-slate-300 text-sm py-1.5"
+                                           placeholder="Buscar centro..." value="{{ r.centro_label|default:'' }}" autocomplete="off">
+                                    <input type="hidden" name="rateio_centro_id" class="combobox-hidden" value="{{ r.centro_id|default:'' }}">
+                                    <div class="combobox-dropdown absolute left-0 right-0 top-full mt-0.5 bg-white border border-slate-200 rounded shadow-lg z-[100] max-h-48 overflow-auto hidden"></div>
+                                </div>
+                            </td>
+                            <td class="px-2 py-2">
+                                <div class="combobox-plano relative">
+                                    <input type="text" class="combobox-input w-full rounded border-slate-300 text-sm py-1.5"
+                                           placeholder="Buscar plano..." value="{{ r.plano_label|default:'' }}" autocomplete="off">
+                                    <input type="hidden" name="rateio_plano_id" class="combobox-hidden" value="{{ r.plano_id|default:'' }}">
+                                    <div class="combobox-dropdown absolute left-0 right-0 top-full mt-0.5 bg-white border border-slate-200 rounded shadow-lg z-[100] max-h-48 overflow-auto hidden"></div>
+                                </div>
+                            </td>
+                            <td class="px-2 py-2">
+                                <input type="text" name="rateio_valor" value="{{ r.valor|default_if_none:'' }}"
+                                       class="rateio-valor w-full rounded border-slate-300 text-sm py-1.5" placeholder="0,00">
+                            </td>
+                            <td class="px-2 py-2">
+                                <input type="text" class="rateio-percentual w-full rounded border-slate-300 text-sm py-1.5"
+                                       value="{{ r.percentual|default_if_none:'' }}" placeholder="0" maxlength="6">
+                            </td>
+                            <td class="px-2 py-2">
+                                <button type="button" class="remover-rateio text-rose-600 text-xs">Remover</button>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                        {% endif %}
+                    </tbody>
+                </table>
+                <div class="mt-4 flex justify-end">
+                    <button type="button" id="modal-rateio-ok"
+                            class="px-4 py-2 rounded-md bg-sky-600 text-white text-sm">
+                        Concluído
+                    </button>
+                </div>
+            </div>
+        </div>
+
+    <div id="rateio-combobox-dropdown" class="fixed z-[200] bg-white border border-slate-200 rounded shadow-lg max-h-48 overflow-auto hidden" style="min-width:200px"></div>
+    </form>
+</div>
+
+<script>
+(function() {
+    var form = document.getElementById("form-conta-receber");
+    if (!form) return;
+
+    var centrosData = [];
+    var planosData = [];
+    try {
+        var el = document.getElementById("centros-data");
+        if (el) centrosData = JSON.parse(el.textContent);
+    } catch (e) {}
+    try {
+        var el2 = document.getElementById("planos-data");
+        if (el2) planosData = JSON.parse(el2.textContent);
+    } catch (e) {}
+
+    function parseValor(s) {
+        if (!s || !s.trim()) return 0;
+        var t = s.trim().replace(/\./g, "").replace(",", ".");
+        var n = parseFloat(t);
+        return isNaN(n) ? 0 : n;
+    }
+
+    function formatarCompetencia(valor) {
+        if (!valor) return "";
+        var digitos = String(valor).replace(/\D/g, "").slice(0, 6); // MMYYYY
+        if (digitos.length <= 2) return digitos;
+        return digitos.slice(0, 2) + "/" + digitos.slice(2);
+    }
+
+    var campoDataEmissao = form.querySelector('input[name="data_emissao"]');
+    var campoCompetencia = form.querySelector('input[name="competencia"]');
+    if (campoCompetencia) {
+        campoCompetencia.addEventListener("input", function () {
+            campoCompetencia.value = formatarCompetencia(campoCompetencia.value);
+        });
+        if (campoCompetencia.value) {
+            campoCompetencia.value = formatarCompetencia(campoCompetencia.value);
+        }
+    }
+    if (campoDataEmissao && campoCompetencia) {
+        campoDataEmissao.addEventListener("change", function () {
+            if (!campoCompetencia.value || !campoCompetencia.value.trim()) {
+                var val = campoDataEmissao.value;
+                if (val && val.length >= 7) {
+                    var parts = val.split("-");
+                    if (parts.length === 3) campoCompetencia.value = formatarCompetencia(parts[1] + parts[0]);
+                }
+            }
+        });
+    }
+
+    // ---- Vencimentos (Receber) ----
+    var tbodyVenc = document.getElementById("tbody-vencimentos");
+    var btnAddVenc = document.getElementById("btn-adicionar-vencimento");
+    var modalVenc = document.getElementById("modal-vencimentos");
+    var modalVencTotal = document.getElementById("modal-vencimentos-total");
+    var btnModalVenc = document.getElementById("btn-modal-vencimentos");
+    var btnVencFechar = document.getElementById("modal-vencimentos-fechar");
+    var btnVencOk = document.getElementById("modal-vencimentos-ok");
+    var backdropVenc = document.getElementById("modal-vencimentos-backdrop");
+    var campoValorTotal = form.querySelector('input[name="valor_total"]');
+
+    function linhaVencimentoNova() {
+        var tr = document.createElement("tr");
+        tr.className = "linha-vencimento border-t border-slate-100";
+        tr.innerHTML =
+            '<td class="px-3 py-2">' +
+            '<input type="hidden" name="vencimento_id" value="">' +
+            '<input type="date" name="data_vencimento" class="w-full rounded border-slate-300 text-sm">' +
+            "</td>" +
+            '<td class="px-3 py-2">' +
+            '<input type="text" name="valor" class="valor-vencimento w-full rounded border-slate-300 text-sm" placeholder="0,00">' +
+            "</td>" +
+            '<td class="px-3 py-2">' +
+            '<button type="button" class="remover-vencimento text-rose-600 text-xs">Remover</button>' +
+            "</td>";
+        return tr;
+    }
+
+    function atualizarTotalVencimentosReceber() {
+        if (!tbodyVenc || !modalVencTotal) return;
+        var total = 0;
+        tbodyVenc.querySelectorAll(".linha-vencimento .valor-vencimento").forEach(function (inp) {
+            total += parseValor(inp.value);
+        });
+        modalVencTotal.textContent = total.toFixed(2).replace(".", ",");
+        atualizarContadorVencimentosReceber();
+    }
+
+    function atualizarContadorVencimentosReceber() {
+        var span = document.getElementById("contador-vencimentos");
+        if (!span || !tbodyVenc) return;
+        var n = 0;
+        tbodyVenc.querySelectorAll(".linha-vencimento .valor-vencimento").forEach(function (inp) {
+            if (parseValor(inp.value) > 0) n++;
+        });
+        span.textContent = n;
+    }
+
+    if (btnAddVenc && tbodyVenc) {
+        btnAddVenc.addEventListener("click", function () {
+            if (campoValorTotal) {
+                var totalConta = parseValor(campoValorTotal.value);
+                if (totalConta > 0) {
+                    var somaAtual = 0;
+                    tbodyVenc.querySelectorAll(".linha-vencimento .valor-vencimento").forEach(function (inp) {
+                        somaAtual += parseValor(inp.value);
+                    });
+                    if (somaAtual >= totalConta) {
+                        alert("Os vencimentos já totalizam o valor total da conta.");
+                        return;
+                    }
+                }
+            }
+            tbodyVenc.appendChild(linhaVencimentoNova());
+            atualizarTotalVencimentosReceber();
+        });
+        tbodyVenc.addEventListener("click", function (e) {
+            if (e.target.classList.contains("remover-vencimento")) {
+                var tr = e.target.closest("tr");
+                if (tr && tr.classList.contains("linha-vencimento")) {
+                    tr.remove();
+                    atualizarTotalVencimentosReceber();
+                }
+            }
+        });
+        tbodyVenc.addEventListener("input", function (e) {
+            if (e.target.classList.contains("valor-vencimento")) {
+                atualizarTotalVencimentosReceber();
+            }
+        });
+        // Ao sair do campo valor: se total != valor da conta, cria nova linha e foco na data
+        tbodyVenc.addEventListener("blur", function (e) {
+            if (!e.target.classList.contains("valor-vencimento") || !campoValorTotal) return;
+            var totalVenc = 0;
+            tbodyVenc.querySelectorAll(".linha-vencimento .valor-vencimento").forEach(function (inp) {
+                totalVenc += parseValor(inp.value);
+            });
+            var valorConta = parseValor(campoValorTotal.value);
+            if (Math.round(totalVenc * 100) !== Math.round(valorConta * 100)) {
+                var newTr = linhaVencimentoNova();
+                tbodyVenc.appendChild(newTr);
+                atualizarTotalVencimentosReceber();
+                setTimeout(function () {
+                    var dateInput = newTr.querySelector("input[name='data_vencimento']");
+                    if (dateInput) dateInput.focus();
+                }, 0);
+            }
+        }, true);
+    }
+
+    function abrirModalVenc() {
+        if (!campoValorTotal || parseValor(campoValorTotal.value) <= 0) {
+            alert("Preencha o valor total da conta antes de gerenciar vencimentos.");
+            return;
+        }
+        if (modalVenc) modalVenc.classList.remove("hidden");
+        // garante ao menos uma linha
+        if (tbodyVenc && tbodyVenc.querySelectorAll(".linha-vencimento").length === 0) {
+            tbodyVenc.appendChild(linhaVencimentoNova());
+        }
+        atualizarTotalVencimentosReceber();
+        // foco na data do vencimento da primeira linha
+        setTimeout(function () {
+            var firstDate = tbodyVenc && tbodyVenc.querySelector(".linha-vencimento input[name='data_vencimento']");
+            if (firstDate) firstDate.focus();
+        }, 0);
+    }
+
+    function fecharModalVenc() {
+        if (modalVenc) modalVenc.classList.add("hidden");
+        setTimeout(function () {
+            var btn = document.getElementById("btn-modal-rateio");
+            if (btn) btn.focus();
+        }, 0);
+    }
+
+    if (btnModalVenc) btnModalVenc.addEventListener("click", abrirModalVenc);
+    if (btnVencFechar) btnVencFechar.addEventListener("click", fecharModalVenc);
+    if (btnVencOk) btnVencOk.addEventListener("click", fecharModalVenc);
+    if (backdropVenc) backdropVenc.addEventListener("click", fecharModalVenc);
+
+    // ---- Rateio (Receber) ----
+    var modalRateio = document.getElementById("modal-rateio");
+    var btnModalRateio = document.getElementById("btn-modal-rateio");
+    var btnAddRateio = document.getElementById("btn-adicionar-rateio");
+    var btnRateioFechar = document.getElementById("modal-rateio-fechar");
+    var btnRateioOk = document.getElementById("modal-rateio-ok");
+    var backdropRateio = document.getElementById("modal-rateio-backdrop");
+    var tbodyRateio = document.getElementById("tbody-rateio");
+    var templateRateio = document.getElementById("rateio-row-template");
+
+    function atualizarContadorRateioReceber() {
+        var span = document.getElementById("contador-rateio");
+        if (!span || !tbodyRateio) return;
+        var n = 0;
+        tbodyRateio.querySelectorAll("tr.linha-rateio").forEach(function (tr) {
+            if (tr.id === "rateio-row-template") return;
+            var inp = tr.querySelector(".rateio-valor");
+            if (inp && parseValor(inp.value) > 0) n++;
+        });
+        span.textContent = n;
+    }
+
+    function getTotalContaParaRateio() {
+        return campoValorTotal ? parseValor(campoValorTotal.value) : 0;
+    }
+
+    function bindRateioValorPercentual() {
+        var total = getTotalContaParaRateio();
+        if (!tbodyRateio) return;
+        tbodyRateio.querySelectorAll("tr.linha-rateio").forEach(function (tr) {
+            if (tr.id === "rateio-row-template") return;
+            var valorInp = tr.querySelector(".rateio-valor");
+            var pctInp = tr.querySelector(".rateio-percentual");
+            if (!valorInp || !pctInp) return;
+            if (total > 0 && valorInp.value && !pctInp.value) {
+                var v = parseValor(valorInp.value);
+                pctInp.value = (v / total * 100).toFixed(2).replace(".", ",");
+            }
+            if (valorInp._rateioBound) return;
+            valorInp._rateioBound = true;
+            pctInp._rateioBound = true;
+            valorInp.addEventListener("input", function () {
+                var v = parseValor(valorInp.value);
+                total = getTotalContaParaRateio();
+                if (total > 0) pctInp.value = (v / total * 100).toFixed(2).replace(".", ",");
+                else pctInp.value = "";
+                atualizarContadorRateioReceber();
+            });
+            pctInp.addEventListener("input", function () {
+                var p = parseValor(pctInp.value);
+                total = getTotalContaParaRateio();
+                if (total > 0) valorInp.value = (p / 100 * total).toFixed(2).replace(".", ",");
+                else valorInp.value = "";
+                atualizarContadorRateioReceber();
+            });
+        });
+    }
+
+    function adicionarLinhaRateio() {
+        if (!tbodyRateio || !templateRateio) return;
+        var clone = templateRateio.cloneNode(true);
+        clone.id = "";
+        clone.style.display = "";
+        clone.classList.add("linha-rateio");
+        tbodyRateio.appendChild(clone);
+        bindRateioValorPercentual();
+        atualizarContadorRateioReceber();
+    }
+
+    function abrirModalRateio() {
+        if (!campoValorTotal || parseValor(campoValorTotal.value) <= 0) {
+            alert("Preencha o valor total da conta antes de gerenciar rateio.");
+            return;
+        }
+        bindComboboxes();
+        if (modalRateio) modalRateio.classList.remove("hidden");
+        if (tbodyRateio && templateRateio) {
+            var temLinha = false;
+            tbodyRateio.querySelectorAll("tr.linha-rateio").forEach(function (tr) {
+                if (tr.id !== "rateio-row-template") temLinha = true;
+            });
+            if (!temLinha) {
+                var clone = templateRateio.cloneNode(true);
+                clone.id = "";
+                clone.style.display = "";
+                clone.classList.add("linha-rateio");
+                tbodyRateio.appendChild(clone);
+            }
+        }
+        bindRateioValorPercentual();
+        atualizarContadorRateioReceber();
+        // Se há uma linha e nenhum valor rateado ainda, preenche a primeira com valor total e 100%
+        var total = getTotalContaParaRateio();
+        if (total > 0 && tbodyRateio) {
+            var linhasAbertura = tbodyRateio.querySelectorAll("tr.linha-rateio:not(#rateio-row-template)");
+            var somaAbertura = 0;
+            linhasAbertura.forEach(function (tr) {
+                var valInp = tr.querySelector(".rateio-valor");
+                if (valInp) somaAbertura += parseValor(valInp.value);
+            });
+            if (somaAbertura === 0 && linhasAbertura.length > 0) {
+                var primeiraLinha = linhasAbertura[0];
+                if (primeiraLinha) {
+                    var valorInp = primeiraLinha.querySelector(".rateio-valor");
+                    var pctInp = primeiraLinha.querySelector(".rateio-percentual");
+                    if (valorInp) valorInp.value = total.toFixed(2).replace(".", ",");
+                    if (pctInp) pctInp.value = "100,00";
+                    bindRateioValorPercentual();
+                    atualizarContadorRateioReceber();
+                }
+            }
+        }
+        // foco no centro de resultado da primeira linha
+        setTimeout(function () {
+            var firstRow = tbodyRateio && tbodyRateio.querySelector("tr.linha-rateio:not(#rateio-row-template)");
+            var centroInput = firstRow && firstRow.querySelector(".combobox-centro .combobox-input");
+            if (centroInput) centroInput.focus();
+        }, 50);
+    }
+
+    function fecharModalRateio() {
+        if (modalRateio) modalRateio.classList.add("hidden");
+    }
+
+    // ---- Rateio: combobox centro de resultado e plano de contas ----
+    var sharedDropdown = document.getElementById("rateio-combobox-dropdown");
+    var comboboxActive = null;
+
+    function showSharedDropdown(input, hidden, data) {
+        if (!sharedDropdown || !data) return;
+        var filter = (input && input.value) ? input.value.trim().toLowerCase() : "";
+        var list = (data || []).filter(function (item) {
+            return !filter || (item.label && item.label.toLowerCase().indexOf(filter) >= 0);
+        });
+        sharedDropdown.innerHTML = "";
+        list.slice(0, 50).forEach(function (item) {
+            var div = document.createElement("div");
+            div.className = "px-3 py-2 hover:bg-slate-100 cursor-pointer text-sm";
+            div.textContent = item.label || "";
+            div.dataset.id = String(item.id);
+            div.dataset.label = item.label || "";
+            div.addEventListener("mousedown", function (ev) { ev.preventDefault(); });
+            div.addEventListener("click", function () {
+                if (comboboxActive) {
+                    comboboxActive.hidden.value = item.id;
+                    comboboxActive.input.value = item.label || "";
+                }
+                sharedDropdown.classList.add("hidden");
+                comboboxActive = null;
+            });
+            sharedDropdown.appendChild(div);
+        });
+        if (list.length > 0 && input) {
+            var rect = input.getBoundingClientRect();
+            sharedDropdown.style.width = Math.max(rect.width, 200) + "px";
+            sharedDropdown.style.left = rect.left + "px";
+            sharedDropdown.style.top = (rect.bottom + 4) + "px";
+            sharedDropdown.classList.remove("hidden");
+            comboboxActive = { input: input, hidden: hidden };
+        } else {
+            sharedDropdown.classList.add("hidden");
+            comboboxActive = null;
+        }
+    }
+
+    function bindComboboxes() {
+        if (!modalRateio || !sharedDropdown) return;
+        if (modalRateio._comboboxBound) return;
+        modalRateio._comboboxBound = true;
+        modalRateio.addEventListener("focusin", function (e) {
+            var input = e.target;
+            if (!input.classList.contains("combobox-input")) return;
+            var container = input.closest(".combobox-centro, .combobox-plano");
+            if (!container || container.closest("#rateio-row-template")) return;
+            var hidden = container.querySelector(".combobox-hidden");
+            if (!hidden) return;
+            var data = container.classList.contains("combobox-centro") ? centrosData : planosData;
+            showSharedDropdown(input, hidden, data);
+        });
+        modalRateio.addEventListener("input", function (e) {
+            var input = e.target;
+            if (!input.classList.contains("combobox-input")) return;
+            var container = input.closest(".combobox-centro, .combobox-plano");
+            if (!container || container.closest("#rateio-row-template")) return;
+            var hidden = container.querySelector(".combobox-hidden");
+            if (!hidden) return;
+            var data = container.classList.contains("combobox-centro") ? centrosData : planosData;
+            showSharedDropdown(input, hidden, data);
+        });
+        modalRateio.addEventListener("focusout", function (e) {
+            setTimeout(function () {
+                if (sharedDropdown && !sharedDropdown.contains(document.activeElement) && comboboxActive && !comboboxActive.input.contains(document.activeElement)) {
+                    sharedDropdown.classList.add("hidden");
+                    comboboxActive = null;
+                }
+            }, 200);
+        });
+        document.addEventListener("click", function (e) {
+            if (sharedDropdown && !sharedDropdown.contains(e.target) && comboboxActive && !comboboxActive.input.contains(e.target)) {
+                sharedDropdown.classList.add("hidden");
+                comboboxActive = null;
+            }
+        });
+    }
+
+    if (btnModalRateio) btnModalRateio.addEventListener("click", abrirModalRateio);
+    if (btnAddRateio && templateRateio) {
+        btnAddRateio.addEventListener("click", function () {
+            var total = getTotalContaParaRateio();
+            if (total > 0) {
+                var soma = 0;
+                tbodyRateio.querySelectorAll("tr.linha-rateio:not(#rateio-row-template)").forEach(function (tr) {
+                    var valInp = tr.querySelector(".rateio-valor");
+                    if (valInp) soma += parseValor(valInp.value);
+                });
+                if (soma >= total) {
+                    alert("Os rateios já totalizam o valor total da conta.");
+                    return;
+                }
+                if (soma > 0 && soma < total) {
+                    var restante = total - soma;
+                    var clone = templateRateio.cloneNode(true);
+                    clone.id = "";
+                    clone.style.display = "";
+                    clone.classList.add("linha-rateio");
+                    tbodyRateio.appendChild(clone);
+                    var valorInp = clone.querySelector(".rateio-valor");
+                    var pctInp = clone.querySelector(".rateio-percentual");
+                    if (valorInp) valorInp.value = restante.toFixed(2).replace(".", ",");
+                    if (pctInp) pctInp.value = (restante / total * 100).toFixed(2).replace(".", ",");
+                    bindRateioValorPercentual();
+                    atualizarContadorRateioReceber();
+                    return;
+                }
+            }
+            adicionarLinhaRateio();
+        });
+    }
+    if (btnRateioFechar) btnRateioFechar.addEventListener("click", fecharModalRateio);
+    if (btnRateioOk) btnRateioOk.addEventListener("click", fecharModalRateio);
+    if (backdropRateio) backdropRateio.addEventListener("click", fecharModalRateio);
+
+    if (tbodyRateio) {
+        tbodyRateio.addEventListener("click", function (e) {
+            if (e.target.classList.contains("remover-rateio")) {
+                var tr = e.target.closest("tr");
+                if (tr && tr.classList.contains("linha-rateio") && tr.id !== "rateio-row-template") {
+                    tr.remove();
+                    atualizarContadorRateioReceber();
+                }
+            }
+        });
+        tbodyRateio.addEventListener("input", function (e) {
+            if (e.target.classList.contains("rateio-valor") || e.target.classList.contains("rateio-percentual")) {
+                atualizarContadorRateioReceber();
+            }
+        });
+        // Ao sair do campo valor: se total != valor da conta, cria nova linha com restante e foco no centro de resultado
+        tbodyRateio.addEventListener("blur", function (e) {
+            if (!e.target.classList.contains("rateio-valor") || !campoValorTotal) return;
+            var totalConta = getTotalContaParaRateio();
+            if (totalConta <= 0) return;
+            var soma = 0;
+            tbodyRateio.querySelectorAll("tr.linha-rateio:not(#rateio-row-template)").forEach(function (tr) {
+                var inp = tr.querySelector(".rateio-valor");
+                if (inp) soma += parseValor(inp.value);
+            });
+            if (Math.round(soma * 100) >= Math.round(totalConta * 100)) return;
+            var restante = totalConta - soma;
+            var clone = templateRateio.cloneNode(true);
+            clone.id = "";
+            clone.style.display = "";
+            clone.classList.add("linha-rateio");
+            tbodyRateio.appendChild(clone);
+            var valorInp = clone.querySelector(".rateio-valor");
+            var pctInp = clone.querySelector(".rateio-percentual");
+            if (valorInp) valorInp.value = restante.toFixed(2).replace(".", ",");
+            if (pctInp) pctInp.value = (restante / totalConta * 100).toFixed(2).replace(".", ",");
+            bindRateioValorPercentual();
+            atualizarContadorRateioReceber();
+            var centroInput = clone.querySelector(".combobox-centro .combobox-input");
+            if (centroInput) setTimeout(function () { centroInput.focus(); }, 0);
+        }, true);
+        // Ao sair do campo percentual: se soma > 0 e < total (sem linha vazia), cria nova linha com restante e foco no centro de resultado
+        tbodyRateio.addEventListener("blur", function (e) {
+            if (!e.target.classList.contains("rateio-percentual") || !campoValorTotal) return;
+            var total = getTotalContaParaRateio();
+            if (total <= 0) return;
+            var soma = 0;
+            var hasEmpty = false;
+            tbodyRateio.querySelectorAll("tr.linha-rateio:not(#rateio-row-template)").forEach(function (tr) {
+                var valInp = tr.querySelector(".rateio-valor");
+                var v = valInp ? parseValor(valInp.value) : 0;
+                if (v <= 0) hasEmpty = true;
+                else soma += v;
+            });
+            if (soma <= 0 || soma >= total || hasEmpty) return;
+            var restante = total - soma;
+            var clone = templateRateio.cloneNode(true);
+            clone.id = "";
+            clone.style.display = "";
+            clone.classList.add("linha-rateio");
+            tbodyRateio.appendChild(clone);
+            var valorInp = clone.querySelector(".rateio-valor");
+            var pctInp = clone.querySelector(".rateio-percentual");
+            if (valorInp) valorInp.value = restante.toFixed(2).replace(".", ",");
+            if (pctInp) pctInp.value = (restante / total * 100).toFixed(2).replace(".", ",");
+            bindRateioValorPercentual();
+            atualizarContadorRateioReceber();
+            var centroInput = clone.querySelector(".combobox-centro .combobox-input");
+            if (centroInput) setTimeout(function () { centroInput.focus(); }, 0);
+        }, true);
+    }
+
+    // Inicializa contadores ao carregar a página (edição: vencimentos e rateios já existentes)
+    if (tbodyVenc) atualizarTotalVencimentosReceber();
+    if (tbodyRateio) atualizarContadorRateioReceber();
+})();
+</script>
+
+{% endblock %}
+

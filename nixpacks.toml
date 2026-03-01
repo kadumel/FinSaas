@@ -1,0 +1,9 @@
+# Nixpacks config for Railway (optional - Railway auto-detects Django)
+[phases.setup]
+nixPkgs = ["python312"]
+
+[phases.install]
+cmds = ["pip install -r requirements.txt"]
+
+[variables]
+PYTHON_VERSION = "3.12"

@@ -1,0 +1,665 @@
+{% extends "base.html" %}
+
+{% block title %}Contas a Pagar – Baixas · Movimentos{% endblock %}
+
+{% block content %}
+<div class="flex flex-col gap-4">
+    <div class="flex items-center justify-between">
+        <div>
+            <h1 class="text-2xl font-semibold text-slate-800">Contas a Pagar – Baixas</h1>
+            <p class="text-sm text-slate-500">Gestão dos pagamentos (baixas) realizados nas contas a pagar.</p>
+        </div>
+    </div>
+
+    <form method="get" action="{% url 'movimentos-contas-a-pagar-baixa' %}"
+          class="bg-white rounded-xl shadow-sm border border-slate-200 p-4 flex flex-wrap items-end gap-4">
+        <div class="flex-1 min-w-[180px]">
+            <label class="block text-xs font-medium text-slate-500 mb-1">Descrição (conta a pagar)</label>
+            <input type="text" name="descricao" value="{{ filtros.descricao }}"
+                   class="w-full rounded-md border-slate-300 text-sm shadow-sm focus:border-sky-500 focus:ring-sky-500"
+                   placeholder="Buscar por descrição">
+        </div>
+        <div class="w-56">
+            <label class="block text-xs font-medium text-slate-500 mb-1">Fornecedor</label>
+            <select name="pessoa_id"
+                    class="w-full rounded-md border-slate-300 text-sm shadow-sm focus:border-sky-500 focus:ring-sky-500">
+                <option value="">Todos</option>
+                {% for p in pessoas_fornecedoras %}
+                    <option value="{{ p.id }}" {% if selected_pessoa_id == p.id %}selected{% endif %}>
+                        {{ p.nome_razao }}
+                    </option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="w-40">
+            <label class="block text-xs font-medium text-slate-500 mb-1">Conta financeira</label>
+            <select name="conta_financeira_id"
+                    class="w-full rounded-md border-slate-300 text-sm shadow-sm focus:border-sky-500 focus:ring-sky-500">
+                <option value="">Todas</option>
+                {% for cf in contas_financeiras %}
+                    <option value="{{ cf.id }}" {% if selected_conta_financeira_id == cf.id %}selected{% endif %}>
+                        {{ cf.banco.nome }} – {{ cf.agencia }}/{{ cf.conta }}
+                    </option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="w-36">
+            <label class="block text-xs font-medium text-slate-500 mb-1">Data pagamento (de)</label>
+            <input type="date" name="data_inicio" value="{{ filtros.data_inicio }}"
+                   class="w-full rounded-md border-slate-300 text-sm shadow-sm focus:border-sky-500 focus:ring-sky-500">
+        </div>
+        <div class="w-36">
+            <label class="block text-xs font-medium text-slate-500 mb-1">Data pagamento (até)</label>
+            <input type="date" name="data_fim" value="{{ filtros.data_fim }}"
+                   class="w-full rounded-md border-slate-300 text-sm shadow-sm focus:border-sky-500 focus:ring-sky-500">
+        </div>
+        <div class="w-full flex justify-end gap-2 pt-2">
+            <button type="submit"
+                    class="px-4 py-2 rounded-md bg-slate-700 text-white text-sm font-medium hover:bg-slate-800">
+                Filtrar
+            </button>
+            <button type="button"
+                    id="btn-abrir-modal-baixa"
+                    class="px-4 py-2 rounded-md bg-sky-600 text-white text-sm font-medium hover:bg-sky-700">
+                Baixar
+            </button>
+            <a href="{% url 'movimentos-contas-a-pagar-baixa' %}"
+               class="px-4 py-2 rounded-md border border-slate-300 text-slate-700 text-sm hover:bg-slate-50">
+                Limpar
+            </a>
+        </div>
+    </form>
+
+    <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+        <table class="min-w-full text-sm">
+            <thead class="bg-slate-50 text-slate-600 uppercase text-xs tracking-wide text-center">
+                <tr>
+                    <th class="px-4 py-2 text-left">Fornecedor</th>
+                    <th class="px-4 py-2 text-left">Vencimento</th>
+                    <th class="px-4 py-2 text-left">Conta financeira</th>
+                    <th class="px-4 py-2 text-center">Data pagamento</th>
+                    <th class="px-4 py-2 text-right">Valor pago</th>
+                    <th class="px-4 py-2 text-right">Juros</th>
+                    <th class="px-4 py-2 text-right">Multa</th>
+                    <th class="px-4 py-2 text-center w-24">Ações</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-100">
+                {% for b in baixas %}
+                    <tr class="hover:bg-slate-50">
+                        <td class="px-4 py-2 text-slate-700">
+                            {{ b.conta_pagar_venc.conta_pagar.pessoa.nome_razao|default:"—" }}
+                        </td>
+                        <td class="px-4 py-2 text-slate-700">
+                            {{ b.conta_pagar_venc.data_vencimento|date:"d/m/Y" }} – R$ {{ b.conta_pagar_venc.valor|floatformat:2 }}
+                        </td>
+                        <td class="px-4 py-2 text-slate-700">
+                            {{ b.conta_financeira.banco.nome }} – {{ b.conta_financeira.agencia }}/{{ b.conta_financeira.conta }}
+                        </td>
+                        <td class="px-4 py-2 text-center text-slate-700">
+                            {{ b.data_pagamento|date:"d/m/Y" }}
+                        </td>
+                        <td class="px-4 py-2 text-right text-slate-800 font-medium">
+                            R$ {{ b.valor_pago|floatformat:2 }}
+                        </td>
+                        <td class="px-4 py-2 text-right text-slate-700">
+                            R$ {{ b.juros|floatformat:2 }}
+                        </td>
+                        <td class="px-4 py-2 text-right text-slate-700">
+                            R$ {{ b.multa|floatformat:2 }}
+                        </td>
+                        <td class="px-4 py-2 text-center">
+                            <div class="inline-flex items-center gap-1">
+                                <button type="button"
+                                        class="inline-flex items-center rounded-md border border-slate-300 px-2 py-1 text-xs text-slate-700 hover:bg-slate-50 btn-ver-conta-pagar"
+                                        title="Ver conta a pagar"
+                                        data-descricao="{{ b.conta_pagar_venc.conta_pagar.descricao }}"
+                                        data-documento="{{ b.conta_pagar_venc.conta_pagar.documento }}"
+                                        data-tipo-documento="{{ b.conta_pagar_venc.conta_pagar.tipo_documento.nome|default_if_none:'' }}"
+                                        data-competencia="{{ b.conta_pagar_venc.conta_pagar.competencia|default_if_none:'' }}"
+                                        data-data-emissao="{{ b.conta_pagar_venc.conta_pagar.data_emissao|date:'d/m/Y' }}"
+                                        data-valor-total="{{ b.conta_pagar_venc.conta_pagar.valor_total|floatformat:2 }}"
+                                        data-status="{{ b.conta_pagar_venc.conta_pagar.get_status_display }}"
+                                        data-fornecedor="{{ b.conta_pagar_venc.conta_pagar.pessoa.nome_razao|default:'—' }}">
+                                    🔍
+                                </button>
+                                <a href="{% url 'movimentos-contas-a-pagar-baixa-editar' b.id %}"
+                                   class="inline-flex items-center rounded-md border border-sky-300 px-2 py-1 text-xs text-sky-700 hover:bg-sky-50"
+                                   title="Editar baixa">
+                                    ✏️
+                                </a>
+                                <button type="button"
+                                        class="inline-flex items-center rounded-md border border-amber-300 px-2 py-1 text-xs text-amber-700 hover:bg-amber-50 btn-estorno-baixa"
+                                        title="Lançar estorno"
+                                        data-baixa-id="{{ b.id }}"
+                                        data-empresa="{{ b.conta_pagar_venc.conta_pagar.empresa.razao_social }}"
+                                        data-conta-financeira="{{ b.conta_financeira.banco.nome }} – {{ b.conta_financeira.agencia }}/{{ b.conta_financeira.conta }}"
+                                        data-valor-estorno="{{ b.valor_pago|add:b.juros|add:b.multa|floatformat:2 }}">
+                                    ↩
+                                </button>
+                                <a href="{% url 'movimentos-contas-a-pagar-baixa-excluir' b.id %}"
+                                   class="inline-flex items-center rounded-md border border-rose-300 px-2 py-1 text-xs text-rose-700 hover:bg-rose-50"
+                                   title="Excluir baixa">
+                                    🗑️
+                                </a>
+                            </div>
+                        </td>
+                    </tr>
+                {% empty %}
+                    <tr>
+                        <td colspan="8" class="px-4 py-8 text-center text-slate-400 text-sm">
+                            Nenhuma baixa encontrada. Use os filtros para buscar.
+                        </td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+{# Modal de visualização da Conta a Pagar #}
+<div id="modal-conta-pagar" class="fixed inset-0 z-40 hidden" aria-hidden="true">
+    <div class="fixed inset-0 bg-black/50" id="modal-conta-pagar-backdrop"></div>
+    <div class="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-xl max-h-[80vh] overflow-auto bg-white rounded-xl shadow-xl border border-slate-200 p-6">
+        <div class="flex justify-between items-center mb-4">
+            <h2 class="text-lg font-semibold text-slate-800">Detalhes da conta a pagar</h2>
+            <button type="button" id="modal-conta-pagar-fechar" class="text-slate-400 hover:text-slate-600">✕</button>
+        </div>
+
+        <dl class="space-y-2 text-sm">
+            <div class="flex justify-between gap-4">
+                <dt class="text-slate-500">Fornecedor</dt>
+                <dd class="font-medium text-slate-800 text-right" id="cp-fornecedor">—</dd>
+            </div>
+            <div class="flex justify-between gap-4">
+                <dt class="text-slate-500">Descrição</dt>
+                <dd class="font-medium text-slate-800 text-right" id="cp-descricao">—</dd>
+            </div>
+            <div class="flex justify-between gap-4">
+                <dt class="text-slate-500">Documento</dt>
+                <dd class="font-medium text-slate-800 text-right" id="cp-documento">—</dd>
+            </div>
+            <div class="flex justify-between gap-4">
+                <dt class="text-slate-500">Tipo documento</dt>
+                <dd class="font-medium text-slate-800 text-right" id="cp-tipo-documento">—</dd>
+            </div>
+            <div class="flex justify-between gap-4">
+                <dt class="text-slate-500">Competência</dt>
+                <dd class="font-medium text-slate-800 text-right" id="cp-competencia">—</dd>
+            </div>
+            <div class="flex justify-between gap-4">
+                <dt class="text-slate-500">Data emissão</dt>
+                <dd class="font-medium text-slate-800 text-right" id="cp-data-emissao">—</dd>
+            </div>
+            <div class="flex justify-between gap-4">
+                <dt class="text-slate-500">Valor total</dt>
+                <dd class="font-medium text-slate-800 text-right" id="cp-valor-total">—</dd>
+            </div>
+            <div class="flex justify-between gap-4">
+                <dt class="text-slate-500">Status</dt>
+                <dd class="font-medium text-slate-800 text-right" id="cp-status">—</dd>
+            </div>
+        </dl>
+
+        <div class="mt-6 flex justify-end">
+            <button type="button"
+                    id="modal-conta-pagar-fechar2"
+                    class="px-4 py-2 rounded-md border border-slate-300 text-slate-700 text-sm hover:bg-slate-50">
+                Fechar
+            </button>
+        </div>
+    </div>
+</div>
+
+{# Modal de lançamento de estorno #}
+<div id="modal-estorno" class="fixed inset-0 z-50 hidden" aria-hidden="true">
+    <div class="fixed inset-0 bg-black/50" id="modal-estorno-backdrop"></div>
+    <div class="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-lg max-h-[85vh] overflow-auto bg-white rounded-xl shadow-xl border border-slate-200 p-6">
+        <div class="flex justify-between items-center mb-4">
+            <h2 class="text-lg font-semibold text-slate-800">Lançar estorno</h2>
+            <button type="button" id="modal-estorno-fechar" class="text-slate-400 hover:text-slate-600">✕</button>
+        </div>
+
+        <form method="post" action="{% url 'movimentos-contas-a-pagar-baixa-estornar' %}" id="form-estorno" class="space-y-4">
+            {% csrf_token %}
+            <input type="hidden" name="baixa_id" id="estorno_baixa_id" value="">
+
+            <div class="space-y-1">
+                <label class="block text-sm font-medium text-slate-700">Empresa</label>
+                <input type="text" id="estorno_empresa"
+                       class="w-full rounded-md border-slate-300 bg-slate-100 text-sm text-slate-700"
+                       readonly>
+            </div>
+
+            <div class="space-y-1">
+                <label class="block text-sm font-medium text-slate-700">Conta financeira</label>
+                <input type="text" id="estorno_conta_financeira"
+                       class="w-full rounded-md border-slate-300 bg-slate-100 text-sm text-slate-700"
+                       readonly>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div class="space-y-1">
+                    <label class="block text-sm font-medium text-slate-700">Tipo</label>
+                    <input type="text"
+                           value="Crédito"
+                           class="w-full rounded-md border-slate-300 bg-slate-100 text-sm text-slate-700"
+                           readonly>
+                </div>
+                <div class="space-y-1">
+                    <label class="block text-sm font-medium text-slate-700">Valor estorno (R$)</label>
+                    <input type="text" id="estorno_valor"
+                           class="w-full rounded-md border-slate-300 bg-slate-100 text-sm text-slate-700"
+                           readonly>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div class="space-y-1">
+                    <label class="block text-sm font-medium text-slate-700">Centro de resultado</label>
+                    <select name="centro_resultado_id" id="estorno_centro_resultado_id"
+                            class="w-full rounded-md border-slate-300 shadow-sm focus:border-sky-500 focus:ring-sky-500 text-sm">
+                        <option value="">Selecione...</option>
+                        {% for c in centros_resultado %}
+                            <option value="{{ c.id }}">
+                                {{ c.codigo }} - {{ c.descricao }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="space-y-1">
+                    <label class="block text-sm font-medium text-slate-700">Plano de contas</label>
+                    <select name="plano_conta_id" id="estorno_plano_conta_id"
+                            class="w-full rounded-md border-slate-300 shadow-sm focus:border-sky-500 focus:ring-sky-500 text-sm">
+                        <option value="">Selecione...</option>
+                        {% for p in planos_conta %}
+                            <option value="{{ p.id }}">
+                                {{ p.codigo }} - {{ p.descricao }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+
+            <div class="space-y-1">
+                <label class="block text-sm font-medium text-slate-700">Data do estorno</label>
+                <input type="date" name="data" id="estorno_data"
+                       class="w-full rounded-md border-slate-300 shadow-sm focus:border-sky-500 focus:ring-sky-500 text-sm"
+                       value="{{ hoje_iso }}">
+            </div>
+
+            <div class="space-y-1">
+                <label class="block text-sm font-medium text-slate-700">Observação</label>
+                <textarea name="observacao" id="estorno_observacao" rows="3"
+                          class="w-full rounded-md border-slate-300 shadow-sm focus:border-sky-500 focus:ring-sky-500 text-sm"></textarea>
+            </div>
+
+            <div class="flex justify-end gap-2 pt-4">
+                <button type="button"
+                        id="modal-estorno-cancelar"
+                        class="px-4 py-2 text-sm rounded-md border border-slate-300 text-slate-700 hover:bg-slate-50">
+                    Cancelar
+                </button>
+                <button type="submit"
+                        class="px-4 py-2 text-sm rounded-md bg-amber-600 text-white font-medium hover:bg-amber-700">
+                    Lançar estorno
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{# Modal para selecionar vencimentos a baixar #}
+<div id="modal-baixa" class="fixed inset-0 z-50 {% if acao == 'buscar_vencimentos' %}flex items-center justify-center{% else %}hidden{% endif %}" aria-hidden="true">
+    <div class="fixed inset-0 bg-black/50" id="modal-baixa-backdrop"></div>
+    <div class="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-7xl max-h-[90vh] overflow-auto bg-white rounded-xl shadow-xl border border-slate-200 p-6">
+        <div class="flex justify-between items-center mb-4">
+            <h2 class="text-lg font-semibold text-slate-800">Baixar vencimentos de Contas a Pagar</h2>
+            <button type="button" id="modal-baixa-fechar" class="text-slate-400 hover:text-slate-600">✕</button>
+        </div>
+
+        <form method="get" action="{% url 'movimentos-contas-a-pagar-baixa' %}" class="mb-4 p-4 bg-slate-50 rounded-lg border border-slate-200">
+            <input type="hidden" name="acao" value="buscar_vencimentos">
+            <div class="flex flex-wrap items-end gap-4">
+                <div class="w-40">
+                    <label class="block text-xs font-medium text-slate-500 mb-1">Data vencimento (de)</label>
+                    <input type="date" name="venc_data_inicio" value="{{ filtros_modal.venc_data_inicio|default:data_vencimento_modal_padrao }}"
+                           class="w-full rounded-md border-slate-300 text-sm shadow-sm focus:border-sky-500 focus:ring-sky-500">
+                </div>
+                <div class="w-40">
+                    <label class="block text-xs font-medium text-slate-500 mb-1">Data vencimento (até)</label>
+                    <input type="date" name="venc_data_fim" value="{{ filtros_modal.venc_data_fim|default:data_vencimento_modal_padrao }}"
+                           class="w-full rounded-md border-slate-300 text-sm shadow-sm focus:border-sky-500 focus:ring-sky-500">
+                </div>
+                <div class="w-56">
+                    <label class="block text-xs font-medium text-slate-500 mb-1">Fornecedor</label>
+                    <select name="venc_pessoa_id"
+                            class="w-full rounded-md border-slate-300 text-sm shadow-sm focus:border-sky-500 focus:ring-sky-500">
+                        <option value="">Todos</option>
+                        {% for p in pessoas_fornecedoras %}
+                            <option value="{{ p.id }}" {% if selected_venc_pessoa_id == p.id %}selected{% endif %}>
+                                {{ p.nome_razao }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <button type="submit"
+                        class="px-4 py-2 rounded-md bg-slate-700 text-white text-sm font-medium hover:bg-slate-800">
+                    Pesquisar
+                </button>
+            </div>
+        </form>
+
+        <p class="text-xs text-slate-500 mb-3">
+            {% if acao == 'buscar_vencimentos' and vencimentos_para_baixa %}
+                Vencimentos em aberto encontrados. Preencha conta financeira, data de pagamento e valor e clique em Baixar.
+            {% else %}
+                Informe os filtros (data do vencimento e/ou fornecedor) e clique em Pesquisar para listar os vencimentos.
+            {% endif %}
+        </p>
+        <div class="bg-white rounded-xl border border-slate-200 overflow-hidden">
+            <table class="min-w-full text-sm">
+                <thead class="bg-slate-50 text-slate-600 uppercase text-xs tracking-wide text-center">
+                    <tr>
+                        <th class="px-3 py-2 text-left">Conta a pagar</th>
+                        <th class="px-3 py-2 text-left">Fornecedor</th>
+                        <th class="px-3 py-2 text-center">Vencimento</th>
+                        <th class="px-3 py-2 text-right">Valor venc.</th>
+                        <th class="px-3 py-2 text-left">Conta financeira</th>
+                        <th class="px-3 py-2 text-center">Data pag.</th>
+                        <th class="px-3 py-2 text-right">Valor pago</th>
+                        <th class="px-3 py-2 text-right">Juros</th>
+                        <th class="px-3 py-2 text-right">Multa</th>
+                        <th class="px-3 py-2 text-center w-24 min-w-[6rem]">Ação</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100">
+                    {% if vencimentos_para_baixa %}
+                        {% for v in vencimentos_para_baixa %}
+                        <tr>
+                            <td class="px-3 py-2 text-slate-700">
+                                {{ v.conta_pagar.descricao }}
+                            </td>
+                            <td class="px-3 py-2 text-slate-700">
+                                {{ v.conta_pagar.pessoa.nome_razao|default:"—" }}
+                            </td>
+                            <td class="px-3 py-2 text-center text-slate-700">
+                                {{ v.data_vencimento|date:"d/m/Y" }}
+                            </td>
+                            <td class="px-3 py-2 text-right text-slate-800">
+                                R$ {{ v.valor|floatformat:2 }}
+                            </td>
+                            <td class="px-3 py-2 text-slate-700">
+                                <select name="conta_financeira_id" form="form-baixa-{{ v.id }}"
+                                        class="w-40 rounded-md border-slate-300 text-xs shadow-sm focus:border-sky-500 focus:ring-sky-500">
+                                    <option value="">Selecione...</option>
+                                    {% for cf in contas_financeiras %}
+                                        <option value="{{ cf.id }}">{{ cf.banco.nome }} – {{ cf.agencia }}/{{ cf.conta }}</option>
+                                    {% endfor %}
+                                </select>
+                            </td>
+                            <td class="px-3 py-2 text-center">
+                                    <input type="date" name="data_pagamento" form="form-baixa-{{ v.id }}" value="{{ hoje_iso }}"
+                                           class="w-32 rounded-md border-slate-300 text-xs shadow-sm focus:border-sky-500 focus:ring-sky-500">
+                            </td>
+                            <td class="px-3 py-2 text-right">
+                                    <input type="text" name="valor_pago" form="form-baixa-{{ v.id }}"
+                                           value="{{ v.valor|floatformat:2 }}"
+                                           class="w-24 rounded-md border-slate-300 text-xs text-right shadow-sm focus:border-sky-500 focus:ring-sky-500"
+                                           placeholder="0,00">
+                            </td>
+                            <td class="px-3 py-2 text-right">
+                                    <input type="text" name="juros" form="form-baixa-{{ v.id }}"
+                                           value="0,00"
+                                           class="w-20 rounded-md border-slate-300 text-xs text-right shadow-sm focus:border-sky-500 focus:ring-sky-500"
+                                           placeholder="0,00">
+                            </td>
+                            <td class="px-3 py-2 text-right">
+                                    <input type="text" name="multa" form="form-baixa-{{ v.id }}"
+                                           value="0,00"
+                                           class="w-20 rounded-md border-slate-300 text-xs text-right shadow-sm focus:border-sky-500 focus:ring-sky-500"
+                                           placeholder="0,00">
+                            </td>
+                            <td class="px-3 py-2 text-center w-24 min-w-[6rem]">
+                                <form id="form-baixa-{{ v.id }}" method="post" action="{% url 'movimentos-contas-a-pagar-vencimento-baixar' v.id %}" class="form-baixa-vencimento inline-block">
+                                    {% csrf_token %}
+                                    <button type="submit"
+                                            class="px-3 py-1 rounded-md bg-emerald-600 text-white text-xs font-medium hover:bg-emerald-700 whitespace-nowrap">
+                                        Baixar
+                                    </button>
+                                </form>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    {% else %}
+                        <tr>
+                            <td colspan="10" class="px-4 py-6 text-center text-slate-400 text-sm">
+                                {% if acao == 'buscar_vencimentos' %}
+                                    Nenhum vencimento em aberto encontrado para os filtros informados.
+                                {% else %}
+                                    Use os filtros acima e clique em Pesquisar para listar os vencimentos.
+                                {% endif %}
+                            </td>
+                        </tr>
+                    {% endif %}
+                </tbody>
+            </table>
+        </div>
+        <div class="mt-4 flex justify-end">
+            <button type="button" id="modal-baixa-fechar2"
+                    class="px-4 py-2 rounded-md border border-slate-300 text-slate-700 text-sm hover:bg-slate-50">
+                Fechar
+            </button>
+        </div>
+    </div>
+</div>
+
+<script>
+(function() {
+    var modal = document.getElementById("modal-baixa");
+    if (!modal) return;
+    function fecharModalBaixa() {
+        // Ao fechar o modal, limpa a pesquisa recarregando a página base (sem parâmetros do modal)
+        window.location.href = "{% url 'movimentos-contas-a-pagar-baixa' %}";
+    }
+    function abrirModalBaixa() {
+        modal.classList.remove("hidden");
+    }
+    var urlLista = "{% url 'movimentos-contas-a-pagar-baixa' %}";
+    var urlVerificarVencimentos = "{% url 'movimentos-contas-a-pagar-baixa-verificar-vencimentos' %}";
+    var btnAbrir = document.getElementById("btn-abrir-modal-baixa");
+    var btnFechar = document.getElementById("modal-baixa-fechar");
+    var btnFechar2 = document.getElementById("modal-baixa-fechar2");
+    var backdrop = document.getElementById("modal-baixa-backdrop");
+    if (btnAbrir) {
+        btnAbrir.addEventListener("click", function() {
+            fetch(urlVerificarVencimentos)
+                .then(function(r) { return r.json(); })
+                .then(function(data) {
+                    if (!data.pode_incluir) {
+                        window.location.href = urlLista + "?erro_baixa=permissao";
+                        return;
+                    }
+                    if (!data.tem_vencimentos) {
+                        window.location.href = urlLista + "?erro_baixa=vencimentos";
+                        return;
+                    }
+                    abrirModalBaixa();
+                })
+                .catch(function() {
+                    window.location.href = urlLista + "?erro_baixa=erro";
+                });
+        });
+    }
+    if (btnFechar) btnFechar.addEventListener("click", fecharModalBaixa);
+    if (btnFechar2) btnFechar2.addEventListener("click", fecharModalBaixa);
+    if (backdrop) backdrop.addEventListener("click", fecharModalBaixa);
+
+    // Validação ao clicar em Baixar: conta financeira e data de pagamento obrigatórios
+    // (form está na célula de ação; demais campos estão em outras células da mesma linha)
+    modal.addEventListener("submit", function(e) {
+        var form = e.target;
+        if (!form || !form.classList.contains("form-baixa-vencimento")) return;
+        e.preventDefault();
+
+        var row = form.closest("tr");
+        if (!row) return;
+
+        var contaFin = row.querySelector("select[name='conta_financeira_id']");
+        var dataPag = row.querySelector("input[name='data_pagamento']");
+        if (!contaFin || !(contaFin.value || "").trim()) {
+            alert("Selecione a conta financeira.");
+            return;
+        }
+        if (!dataPag || !(dataPag.value || "").trim()) {
+            alert("Informe a data de pagamento.");
+            return;
+        }
+
+        // Envia a baixa via AJAX, mantendo o modal aberto
+        var formData = new FormData(form);
+        var csrfInput = form.querySelector("input[name='csrfmiddlewaretoken']");
+        var csrfToken = csrfInput ? csrfInput.value : null;
+
+        fetch(form.action, {
+            method: "POST",
+            headers: {
+                "X-Requested-With": "XMLHttpRequest",
+                ...(csrfToken ? {"X-CSRFToken": csrfToken} : {}),
+            },
+            body: formData,
+        }).then(function(resp) {
+            if (!resp.ok) {
+                return resp.json().catch(function() { return {error: "Erro ao processar a baixa."}; }).then(function(data) {
+                    throw new Error(data.error || "Erro ao processar a baixa.");
+                });
+            }
+            return resp.json();
+        }).then(function(data) {
+            if (!data.ok) {
+                alert(data.error || "Erro ao processar a baixa.");
+                return;
+            }
+            // Remove a linha baixada e foca na conta financeira da próxima linha
+            var nextRow = row.nextElementSibling;
+            row.parentNode.removeChild(row);
+            if (nextRow) {
+                var nextConta = nextRow.querySelector("select[name='conta_financeira_id']");
+                if (nextConta) nextConta.focus();
+            }
+        }).catch(function(err) {
+            alert(err.message || "Erro ao processar a baixa.");
+        });
+    });
+})();
+
+(function() {
+    var modal = document.getElementById("modal-conta-pagar");
+    if (!modal) return;
+
+    var backdrop = document.getElementById("modal-conta-pagar-backdrop");
+    var btnFechar = document.getElementById("modal-conta-pagar-fechar");
+    var btnFechar2 = document.getElementById("modal-conta-pagar-fechar2");
+
+    function preencherCampo(id, valor) {
+        var el = document.getElementById(id);
+        if (!el) return;
+        el.textContent = valor || "—";
+    }
+
+    function abrirModalContaPagar(btn) {
+        if (!btn) return;
+        preencherCampo("cp-fornecedor", btn.getAttribute("data-fornecedor") || "");
+        preencherCampo("cp-descricao", btn.getAttribute("data-descricao") || "");
+        preencherCampo("cp-documento", btn.getAttribute("data-documento") || "");
+        preencherCampo("cp-tipo-documento", btn.getAttribute("data-tipo-documento") || "");
+        preencherCampo("cp-competencia", btn.getAttribute("data-competencia") || "");
+        preencherCampo("cp-data-emissao", btn.getAttribute("data-data-emissao") || "");
+        var valorTotal = btn.getAttribute("data-valor-total") || "";
+        preencherCampo("cp-valor-total", valorTotal ? ("R$ " + valorTotal) : "");
+        preencherCampo("cp-status", btn.getAttribute("data-status") || "");
+
+        modal.classList.remove("hidden");
+    }
+
+    function fecharModalContaPagar() {
+        modal.classList.add("hidden");
+    }
+
+    document.addEventListener("click", function(e) {
+        var btn = e.target.closest(".btn-ver-conta-pagar");
+        if (btn) {
+            abrirModalContaPagar(btn);
+        }
+    });
+
+    if (backdrop) backdrop.addEventListener("click", fecharModalContaPagar);
+    if (btnFechar) btnFechar.addEventListener("click", fecharModalContaPagar);
+    if (btnFechar2) btnFechar2.addEventListener("click", fecharModalContaPagar);
+})();
+
+(function() {
+    var modal = document.getElementById("modal-estorno");
+    if (!modal) return;
+
+    var backdrop = document.getElementById("modal-estorno-backdrop");
+    var btnFechar = document.getElementById("modal-estorno-fechar");
+    var btnCancelar = document.getElementById("modal-estorno-cancelar");
+
+    var campoBaixaId = document.getElementById("estorno_baixa_id");
+    var campoEmpresa = document.getElementById("estorno_empresa");
+    var campoConta = document.getElementById("estorno_conta_financeira");
+    var campoValor = document.getElementById("estorno_valor");
+    var campoData = document.getElementById("estorno_data");
+    var campoCentro = document.getElementById("estorno_centro_resultado_id");
+    var campoPlano = document.getElementById("estorno_plano_conta_id");
+    var campoObs = document.getElementById("estorno_observacao");
+
+    function abrirModalEstorno(btn) {
+        if (!btn) return;
+        if (campoBaixaId) campoBaixaId.value = btn.getAttribute("data-baixa-id") || "";
+        if (campoEmpresa) campoEmpresa.value = btn.getAttribute("data-empresa") || "";
+        if (campoConta) campoConta.value = btn.getAttribute("data-conta-financeira") || "";
+        if (campoValor) campoValor.value = btn.getAttribute("data-valor-estorno") || "";
+        if (campoCentro) campoCentro.value = "";
+        if (campoPlano) campoPlano.value = "";
+        if (campoObs) campoObs.value = "";
+        // data já vem do value padrão (hoje_iso), não mexemos se já tiver valor
+        modal.classList.remove("hidden");
+    }
+
+    function fecharModalEstorno() {
+        modal.classList.add("hidden");
+    }
+
+    var urlListaEstorno = "{% url 'movimentos-contas-a-pagar-baixa' %}";
+    var urlVerificarEstorno = "{% url 'movimentos-contas-a-pagar-baixa-verificar-estorno' %}";
+
+    document.addEventListener("click", function(e) {
+        var btn = e.target.closest(".btn-estorno-baixa");
+        if (!btn) return;
+        e.preventDefault();
+        var baixaId = (btn.getAttribute("data-baixa-id") || "").trim();
+        if (!baixaId) {
+            window.location.href = urlListaEstorno + "?erro_estorno=erro";
+            return;
+        }
+        fetch(urlVerificarEstorno + "?baixa_id=" + encodeURIComponent(baixaId))
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                if (!data.pode_estornar) {
+                    window.location.href = urlListaEstorno + "?erro_estorno=" + (data.motivo || "erro");
+                    return;
+                }
+                abrirModalEstorno(btn);
+            })
+            .catch(function() {
+                window.location.href = urlListaEstorno + "?erro_estorno=erro";
+            });
+    });
+
+    if (backdrop) backdrop.addEventListener("click", fecharModalEstorno);
+    if (btnFechar) btnFechar.addEventListener("click", fecharModalEstorno);
+    if (btnCancelar) btnCancelar.addEventListener("click", fecharModalEstorno);
+})();
+</script>
+{% endblock %}

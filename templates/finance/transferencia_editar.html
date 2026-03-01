@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+
+{% block title %}Editar transferência · Financeiro{% endblock %}
+
+{% block content %}
+<div class="max-w-2xl mx-auto">
+    <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6 space-y-4">
+        <h1 class="text-xl font-semibold text-slate-800">Editar transferência</h1>
+        <p class="text-sm text-slate-500">Altere conta de origem, destino, valor ou data.</p>
+
+        <form method="post" class="space-y-4 pt-2">
+            {% csrf_token %}
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div class="space-y-1">
+                    <label class="block text-sm font-medium text-slate-700">Conta de origem</label>
+                    <select name="conta_origem_id" required
+                            class="w-full rounded-md border-slate-300 shadow-sm focus:border-sky-500 focus:ring-sky-500 text-sm">
+                        <option value="">Selecione...</option>
+                        {% for cf in contas_financeiras %}
+                            <option value="{{ cf.id }}" {% if form.conta_origem_id == cf.id %}selected{% endif %}>
+                                {{ cf.empresa.razao_social }} – {{ cf.banco.nome }} {{ cf.agencia }}/{{ cf.conta }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="space-y-1">
+                    <label class="block text-sm font-medium text-slate-700">Conta de destino</label>
+                    <select name="conta_destino_id" required
+                            class="w-full rounded-md border-slate-300 shadow-sm focus:border-sky-500 focus:ring-sky-500 text-sm">
+                        <option value="">Selecione...</option>
+                        {% for cf in contas_financeiras %}
+                            <option value="{{ cf.id }}" {% if form.conta_destino_id == cf.id %}selected{% endif %}>
+                                {{ cf.empresa.razao_social }} – {{ cf.banco.nome }} {{ cf.agencia }}/{{ cf.conta }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div class="space-y-1">
+                    <label class="block text-sm font-medium text-slate-700">Valor (R$)</label>
+                    <input type="text" name="valor" value="{{ form.valor|default_if_none:'' }}" required
+                           class="w-full rounded-md border-slate-300 shadow-sm focus:border-sky-500 focus:ring-sky-500 text-sm"
+                           placeholder="0,00">
+                </div>
+                <div class="space-y-1">
+                    <label class="block text-sm font-medium text-slate-700">Data</label>
+                    <input type="date" name="data" value="{{ form.data|default_if_none:'' }}" required
+                           class="w-full rounded-md border-slate-300 shadow-sm focus:border-sky-500 focus:ring-sky-500 text-sm">
+                </div>
+            </div>
+            <div class="flex justify-end gap-2 pt-4">
+                <a href="{% url 'financeiro-transferencias' %}"
+                   class="px-4 py-2 text-sm rounded-md border border-slate-300 text-slate-700 hover:bg-slate-50">
+                    Cancelar
+                </a>
+                <button type="submit"
+                        class="px-4 py-2 text-sm rounded-md bg-sky-600 text-white font-medium hover:bg-sky-700">
+                    Salvar
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

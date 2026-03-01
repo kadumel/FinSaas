@@ -1,0 +1,158 @@
+{% extends "base.html" %}
+
+{% block title %}Bancos · Cadastros{% endblock %}
+
+{% block content %}
+<div class="flex flex-col gap-4">
+    <div class="flex items-center justify-between">
+        <div>
+            <h1 class="text-2xl font-semibold text-slate-800">Bancos</h1>
+            <p class="text-sm text-slate-500">Cadastro de bancos utilizados nas contas financeiras.</p>
+        </div>
+        <a href="{% url 'cadastros-bancos-novo' %}"
+           class="inline-flex items-center rounded-md bg-sky-600 px-4 py-2 text-sm font-medium text-white hover:bg-sky-700">
+            Novo banco
+        </a>
+    </div>
+
+    <form method="get" action="{% url 'cadastros-bancos' %}"
+          class="bg-white rounded-xl shadow-sm border border-slate-200 p-4 flex flex-wrap items-end gap-4">
+        <div class="w-32">
+            <label class="block text-xs font-medium text-slate-500 mb-1">Código</label>
+            <input type="text" name="codigo" value="{{ filtros.codigo }}"
+                   placeholder="001"
+                   class="w-full rounded-md border-slate-300 text-sm shadow-sm focus:border-sky-500 focus:ring-sky-500">
+        </div>
+        <div class="flex-1 min-w-[180px]">
+            <label class="block text-xs font-medium text-slate-500 mb-1">Nome</label>
+            <input type="text" name="nome" value="{{ filtros.nome }}"
+                   placeholder="Buscar por nome"
+                   class="w-full rounded-md border-slate-300 text-sm shadow-sm focus:border-sky-500 focus:ring-sky-500">
+        </div>
+        <button type="submit"
+                class="px-4 py-2 rounded-md bg-slate-700 text-white text-sm font-medium hover:bg-slate-800">
+            Filtrar
+        </button>
+        <a href="{% url 'cadastros-bancos' %}"
+           class="px-4 py-2 rounded-md border border-slate-300 text-slate-700 text-sm hover:bg-slate-50">
+            Limpar
+        </a>
+    </form>
+
+    <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+        <table class="min-w-full text-sm">
+            <thead class="bg-slate-50 text-slate-600 uppercase text-xs tracking-wide text-center">
+                <tr>
+                    <th class="px-4 py-2 text-left">Código</th>
+                    <th class="px-4 py-2 text-left">Nome</th>
+                    <th class="px-4 py-2">Ações</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-100">
+                {% for b in bancos %}
+                    <tr class="hover:bg-slate-50">
+                        <td class="px-4 py-2 font-mono text-slate-800">{{ b.codigo }}</td>
+                        <td class="px-4 py-2 text-slate-700">{{ b.nome }}</td>
+                        <td class="px-4 py-2 text-right space-x-2">
+                            <a href="{% url 'cadastros-bancos-editar' b.id %}"
+                               class="inline-flex items-center rounded-md border border-slate-300 px-2 py-1 text-xs text-slate-700 hover:bg-slate-50"
+                               title="Editar">
+                                ✏️
+                            </a>
+                            <button type="button"
+                                    class="btn-excluir-banco inline-flex items-center rounded-md border border-rose-300 px-2 py-1 text-xs text-rose-700 hover:bg-rose-50"
+                                    title="Excluir"
+                                    data-banco-id="{{ b.id }}"
+                                    data-banco-descricao="{{ b.codigo }} - {{ b.nome|escape }}">
+                                🗑️
+                            </button>
+                        </td>
+                    </tr>
+                {% empty %}
+                    <tr>
+                        <td colspan="3" class="px-4 py-8 text-center text-slate-400 text-sm">
+                            Nenhum banco encontrado. Use os filtros ou cadastre um novo.
+                        </td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+{# Modal confirmar exclusão de banco #}
+<div id="modal-excluir-banco" class="fixed inset-0 z-50 hidden" aria-hidden="true">
+    <div class="fixed inset-0 bg-black/50" id="modal-excluir-banco-backdrop"></div>
+    <div class="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-md bg-white rounded-xl shadow-xl border border-slate-200 p-6">
+        <div class="flex justify-between items-start mb-4">
+            <h2 class="text-lg font-semibold text-slate-800">Excluir banco</h2>
+            <button type="button" id="modal-excluir-banco-fechar" class="text-slate-400 hover:text-slate-600 text-xl leading-none">✕</button>
+        </div>
+        <p class="text-sm text-slate-600 mb-2">
+            Deseja realmente excluir o banco <strong id="modal-excluir-banco-descricao" class="text-slate-800"></strong>?
+        </p>
+        <p class="text-xs text-slate-500 mb-6">
+            Esta ação não pode ser desfeita. Não será possível excluir se existirem contas financeiras vinculadas.
+        </p>
+        <div class="flex justify-end gap-2">
+            <button type="button" id="modal-excluir-banco-cancelar"
+                    class="px-4 py-2 rounded-md border border-slate-300 text-slate-700 text-sm font-medium hover:bg-slate-50">
+                Cancelar
+            </button>
+            <a href="#" id="modal-excluir-banco-confirmar"
+               class="px-4 py-2 rounded-md bg-rose-600 text-white text-sm font-medium hover:bg-rose-700">
+                Excluir
+            </a>
+        </div>
+    </div>
+</div>
+
+<script>
+(function() {
+    var modal = document.getElementById("modal-excluir-banco");
+    if (!modal) return;
+    var descricaoEl = document.getElementById("modal-excluir-banco-descricao");
+    var linkConfirmar = document.getElementById("modal-excluir-banco-confirmar");
+    var btnFechar = document.getElementById("modal-excluir-banco-fechar");
+    var btnCancelar = document.getElementById("modal-excluir-banco-cancelar");
+    var backdrop = document.getElementById("modal-excluir-banco-backdrop");
+    var urlLista = "{% url 'cadastros-bancos' %}";
+    var urlVerificarExcluir = "{% url 'cadastros-bancos-verificar-excluir' %}";
+    var urlExcluirTemplate = "{% url 'cadastros-bancos-excluir' 0 %}";
+
+    function abrirModal(bancoId, bancoDescricao) {
+        if (descricaoEl) descricaoEl.textContent = bancoDescricao || "—";
+        if (linkConfirmar) linkConfirmar.href = urlExcluirTemplate.replace(/\/0\//, "/" + bancoId + "/");
+        modal.classList.remove("hidden");
+    }
+    function fecharModal() {
+        modal.classList.add("hidden");
+    }
+
+    document.addEventListener("click", function(e) {
+        var btn = e.target.closest(".btn-excluir-banco");
+        if (!btn) return;
+        e.preventDefault();
+        var id = btn.getAttribute("data-banco-id");
+        var descricao = btn.getAttribute("data-banco-descricao") || "";
+        if (!id) return;
+        fetch(urlVerificarExcluir + "?banco_id=" + encodeURIComponent(id))
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                if (!data.pode_excluir) {
+                    window.location.href = urlLista + "?erro_excluir=permissao";
+                    return;
+                }
+                abrirModal(id, descricao);
+            })
+            .catch(function() {
+                window.location.href = urlLista + "?erro_excluir=erro";
+            });
+    });
+    if (btnFechar) btnFechar.addEventListener("click", fecharModal);
+    if (btnCancelar) btnCancelar.addEventListener("click", fecharModal);
+    if (backdrop) backdrop.addEventListener("click", fecharModal);
+})();
+</script>
+{% endblock %}
+

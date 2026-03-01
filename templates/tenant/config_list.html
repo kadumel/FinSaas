@@ -1,0 +1,73 @@
+{% extends "tenant/base_admin.html" %}
+
+{% block admin_content %}
+<div class="max-w-3xl mx-auto space-y-4">
+    <div class="flex flex-col gap-2">
+        <div>
+            <h1 class="text-2xl font-semibold text-slate-800">Configurações por empresa matriz</h1>
+            <p class="text-sm text-slate-500">
+                Selecione a empresa matriz e defina os valores dos parâmetros de configuração.
+            </p>
+        </div>
+        <form method="get" class="inline-flex items-center gap-2">
+            <label class="text-sm text-slate-600">Empresa matriz:</label>
+            <select name="empresa_id"
+                    onchange="this.form.submit()"
+                    class="rounded-md border-slate-300 text-sm shadow-sm focus:border-sky-500 focus:ring-sky-500">
+                {% for e in empresas_matriz %}
+                    <option value="{{ e.id }}" {% if empresa_selecionada.id == e.id %}selected{% endif %}>
+                        {{ e.razao_social }}
+                    </option>
+                {% endfor %}
+            </select>
+        </form>
+    </div>
+
+    <form method="post" class="bg-white rounded-xl shadow-sm border border-slate-200 p-4 space-y-4">
+        {% csrf_token %}
+        <input type="hidden" name="empresa_id" value="{{ empresa_selecionada.id }}">
+
+        <table class="min-w-full text-sm">
+            <thead class="bg-slate-50 text-slate-600 uppercase text-xs tracking-wide">
+                <tr>
+                    <th class="px-3 py-2 text-left">Parâmetro</th>
+                    <th class="px-3 py-2 text-left">Descrição</th>
+                    <th class="px-3 py-2 text-left">Tipo</th>
+                    <th class="px-3 py-2 text-left">Valor</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-100">
+                {% for c in configs %}
+                    <tr class="hover:bg-slate-50">
+                        <td class="px-3 py-2 font-mono text-slate-800">{{ c.parametro.chave }}</td>
+                        <td class="px-3 py-2 text-slate-700">{{ c.parametro.descricao }}</td>
+                        <td class="px-3 py-2 text-slate-500 text-xs">
+                            {{ c.parametro.get_tipo_display }}
+                        </td>
+                        <td class="px-3 py-2">
+                            <input type="text"
+                                   name="config_{{ c.parametro.id }}"
+                                   value="{{ c.valor }}"
+                                   class="w-full rounded-md border-slate-300 text-sm shadow-sm focus:border-sky-500 focus:ring-sky-500">
+                        </td>
+                    </tr>
+                {% empty %}
+                    <tr>
+                        <td colspan="4" class="px-3 py-6 text-center text-slate-400 text-sm">
+                            Nenhum parâmetro de configuração cadastrado (SIS_CONFIG).
+                        </td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+        <div class="flex justify-end gap-2 pt-2">
+            <button type="submit"
+                    class="px-4 py-2 text-sm rounded-md bg-sky-600 text-white font-medium hover:bg-sky-700">
+                Salvar configurações
+            </button>
+        </div>
+    </form>
+</div>
+{% endblock %}
+

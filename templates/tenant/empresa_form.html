@@ -1,0 +1,98 @@
+{% extends "tenant/base_admin.html" %}
+
+{% block title %}
+    {% if empresa %}
+        Editar empresa · {{ empresa.razao_social }}
+    {% else %}
+        Nova empresa
+    {% endif %}
+{% endblock %}
+
+{% block admin_content %}
+<div class="max-w-xl mx-auto">
+    <h1 class="text-2xl font-semibold text-slate-800 mb-2">
+        {% if empresa %}Editar empresa{% else %}Nova empresa{% endif %}
+    </h1>
+    <p class="text-sm text-slate-500 mb-4">
+        Conta: {{ tenant.nome_fantasia|default:tenant.razao_social }}
+    </p>
+
+    {% if errors %}
+        <div class="mb-4 rounded-md border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-800">
+            <ul class="list-disc list-inside space-y-1">
+                {% for error in errors %}
+                    <li>{{ error }}</li>
+                {% endfor %}
+            </ul>
+        </div>
+    {% endif %}
+
+    <form method="post" class="bg-white rounded-xl shadow-sm border border-slate-200 p-6 space-y-4">
+        {% csrf_token %}
+
+        <div class="space-y-1">
+            <label class="block text-sm font-medium text-slate-700">Razão social</label>
+            <input type="text" name="razao_social" required
+                   value="{{ form.razao_social|default_if_none:'' }}"
+                   class="w-full rounded-md border-slate-300 shadow-sm focus:border-sky-500 focus:ring-sky-500">
+        </div>
+
+        <div class="space-y-1">
+            <label class="block text-sm font-medium text-slate-700">CNPJ</label>
+            <input type="text" name="cnpj" required
+                   value="{{ form.cnpj|default_if_none:'' }}"
+                   class="w-full rounded-md border-slate-300 shadow-sm focus:border-sky-500 focus:ring-sky-500">
+        </div>
+
+        <div class="space-y-1">
+            <label class="block text-sm font-medium text-slate-700">Tipo</label>
+            <select name="tipo"
+                    class="w-full rounded-md border-slate-300 shadow-sm focus:border-sky-500 focus:ring-sky-500">
+                {% with current_tipo=form.tipo|default:'M' %}
+                    <option value="M" {% if current_tipo == 'M' %}selected{% endif %}>Matriz</option>
+                    <option value="F" {% if current_tipo == 'F' %}selected{% endif %}>Filial</option>
+                {% endwith %}
+            </select>
+        </div>
+
+        <div class="space-y-1">
+            <label class="block text-sm font-medium text-slate-700">Empresa matriz (para filiais)</label>
+            <select name="empresa_matriz_id"
+                    class="w-full rounded-md border-slate-300 shadow-sm focus:border-sky-500 focus:ring-sky-500">
+                <option value="">Nenhuma</option>
+                {% for matriz in matrizes %}
+                    <option value="{{ matriz.id }}"
+                        {% if form.empresa_matriz_id %}
+                            {% if form.empresa_matriz_id|add:'0' == matriz.id|stringformat:'s' %}
+                                selected
+                            {% endif %}
+                        {% endif %}>
+                        {{ matriz.razao_social }}
+                    </option>
+                {% endfor %}
+            </select>
+        </div>
+
+        {% if empresa %}
+            <div class="flex items-center gap-2 pt-2">
+                <input type="checkbox" id="ativo" name="ativo" value="1"
+                       {% if empresa.ativo %}checked{% endif %}
+                       class="rounded border-slate-300 text-sky-600 focus:ring-sky-500">
+                <label for="ativo" class="text-sm text-slate-700">Empresa ativa</label>
+            </div>
+        {% endif %}
+
+        <div class="flex justify-end gap-2 pt-4">
+            <a href="{% url 'tenant-empresas-list' %}"
+               class="px-4 py-2 text-sm rounded-md border border-slate-300 text-slate-700 hover:bg-slate-50">
+                Cancelar
+            </a>
+            <button type="submit"
+                    class="px-4 py-2 text-sm rounded-md bg-sky-600 text-white font-medium hover:bg-sky-700">
+                Salvar
+            </button>
+        </div>
+    </form>
+</div>
+{% endblock %}
+

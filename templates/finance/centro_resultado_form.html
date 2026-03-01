@@ -1,0 +1,201 @@
+{% extends "base.html" %}
+
+{% block title %}{% if centro %}Editar centro de resultado{% else %}Novo centro de resultado{% endif %} · Cadastros{% endblock %}
+
+{% block content %}
+<div class="max-w-xl mx-auto">
+    <h1 class="text-2xl font-semibold text-slate-800 mb-2">
+        {% if centro %}Editar centro de resultado{% else %}Novo centro de resultado{% endif %}
+    </h1>
+    <p class="text-sm text-slate-500 mb-4">Cadastro de centros de resultado por empresa.</p>
+
+    <form method="post" class="bg-white rounded-xl shadow-sm border border-slate-200 p-6 space-y-4">
+        {% csrf_token %}
+
+        <div class="space-y-1">
+            <label class="block text-sm font-medium text-slate-700">Centro pai (opcional)</label>
+            <select name="centro_pai_id"
+                    id="id_centro_pai"
+                    class="w-full rounded-md border-slate-300 shadow-sm focus:border-sky-500 focus:ring-sky-500">
+                <option value="">Nenhum (raiz)</option>
+                {% for c in centros_disponiveis %}
+                    <option value="{{ c.id }}"
+                            data-sugestao="{{ c.sugestao_codigo|default_if_none:'' }}"
+                            {% if form.centro_pai_id %}
+                                {% if form.centro_pai_id == c.id %}selected{% endif %}
+                            {% elif centro and centro.centro_pai_id == c.id %}
+                                selected
+                            {% endif %}>
+                        {{ c.codigo }} - {{ c.descricao }}
+                    </option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div class="space-y-1">
+            <label class="block text-sm font-medium text-slate-700">Código</label>
+            <input type="text" name="codigo" id="id_codigo" required
+                   value="{{ form.codigo|default_if_none:'' }}"
+                   class="w-full rounded-md border-slate-300 shadow-sm focus:border-sky-500 focus:ring-sky-500">
+            {% if mascara_codigo %}
+                <p class="text-xs text-slate-500 mt-1">
+                    Máscara: {{ mascara_codigo }}
+                </p>
+            {% endif %}
+        </div>
+
+        <div class="space-y-1">
+            <label class="block text-sm font-medium text-slate-700">Descrição</label>
+            <input type="text" name="descricao" required
+                   value="{{ form.descricao|default_if_none:'' }}"
+                   class="w-full rounded-md border-slate-300 shadow-sm focus:border-sky-500 focus:ring-sky-500">
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div class="space-y-1">
+                <label class="block text-sm font-medium text-slate-700">Tipo</label>
+                <select name="tipo" id="id_tipo"
+                        class="w-full rounded-md border-slate-300 shadow-sm focus:border-sky-500 focus:ring-sky-500">
+                    <option value="S" {% if form.tipo == 'S' %}selected{% endif %}>Sintético</option>
+                    <option value="A" {% if form.tipo == 'A' %}selected{% endif %}>Analítico</option>
+                </select>
+            </div>
+            <div class="space-y-1">
+                <label class="block text-sm font-medium text-slate-700">Nível</label>
+                <input type="number" name="nivel" id="id_nivel" min="1" step="1" disabled
+                       value="{{ form.nivel|default_if_none:'1' }}"
+                       class="w-full rounded-md border-slate-300 bg-slate-50 text-slate-700 shadow-sm focus:border-sky-500 focus:ring-sky-500">
+            </div>
+        </div>
+
+        <div class="space-y-1">
+            <label class="block text-sm font-medium text-slate-700">Centro contábil</label>
+            <input type="text" name="centro_contabil" id="id_centro_contabil" maxlength="30"
+                   value="{{ form.centro_contabil|default_if_none:'' }}"
+                   class="w-full rounded-md border-slate-300 shadow-sm focus:border-sky-500 focus:ring-sky-500">
+        </div>
+
+        {% if not centro %}
+        <div class="flex items-center gap-2 pt-2">
+            <input type="checkbox" name="continuar" id="id_continuar" value="1"
+                   {% if request.GET.continuar %}checked{% endif %}
+                   class="rounded border-slate-300 text-sky-600 focus:ring-sky-500">
+            <label for="id_continuar" class="text-sm text-slate-700">Continuar (após salvar, limpar formulário para inserir outro)</label>
+        </div>
+        {% endif %}
+        <div class="flex justify-end gap-2 pt-4">
+            <a href="{% url 'cadastros-centro-resultado' %}"
+               class="px-4 py-2 text-sm rounded-md border border-slate-300 text-slate-700 hover:bg-slate-50">
+                Cancelar
+            </a>
+            <button type="submit"
+                    class="px-4 py-2 text-sm rounded-md bg-sky-600 text-white font-medium hover:bg-sky-700">
+                Salvar
+            </button>
+        </div>
+    </form>
+
+    <script>
+    (function() {
+        var selectPai = document.getElementById('id_centro_pai');
+        var inputCodigo = document.getElementById('id_codigo');
+        var inputNivel = document.getElementById('id_nivel');
+        var selectTipo = document.getElementById('id_tipo');
+        var inputCentroContabil = document.getElementById('id_centro_contabil');
+        var mascara = "{{ mascara_codigo|default_if_none:''|escapejs }}";
+        var sugestaoRoot = "{{ sugestao_root|default_if_none:''|escapejs }}";
+
+        function aplicarMascaraCodigo() {
+            if (!mascara) return;
+            if (!inputCodigo) return;
+            var digits = (inputCodigo.value || "").replace(/\D/g, "");
+            var result = "";
+            var dIndex = 0;
+            for (var i = 0; i < mascara.length; i++) {
+                var m = mascara.charAt(i);
+                if (m >= '0' && m <= '9') {
+                    if (dIndex < digits.length) {
+                        result += digits.charAt(dIndex++);
+                    } else {
+                        break;
+                    }
+                } else {
+                    // só adiciona separador se ainda houver dígitos depois
+                    if (dIndex === 0 || dIndex >= digits.length) {
+                        break;
+                    }
+                    result += m;
+                }
+            }
+            inputCodigo.value = result;
+            atualizarNivel();
+        }
+
+        function atualizarNivel() {
+            if (!inputNivel || !inputCodigo) return;
+            var code = (inputCodigo.value || "").trim();
+            if (!code) {
+                inputNivel.value = 1;
+                return;
+            }
+            var partes = code.split('.').filter(function(p) { return p.length > 0; });
+            var n = partes.length || 1;
+            inputNivel.value = n;
+        }
+
+        function atualizarCentroContabil() {
+            if (!selectTipo || !inputCentroContabil) return;
+            var t = selectTipo.value;
+            if (t === 'S') {
+                inputCentroContabil.value = '';
+                inputCentroContabil.disabled = true;
+                inputCentroContabil.classList.add('bg-slate-50', 'text-slate-500');
+            } else {
+                inputCentroContabil.disabled = false;
+                inputCentroContabil.classList.remove('bg-slate-50', 'text-slate-500');
+            }
+        }
+
+        function aplicarSugestao() {
+            if (!inputCodigo) return;
+            var val = selectPai ? selectPai.value : "";
+            var sug = "";
+            if (!val) {
+                sug = sugestaoRoot;
+            } else if (selectPai) {
+                var opt = selectPai.options[selectPai.selectedIndex];
+                if (opt) {
+                    sug = opt.getAttribute('data-sugestao') || "";
+                }
+            }
+            if (sug) {
+                inputCodigo.value = sug;
+                aplicarMascaraCodigo();
+            }
+        }
+
+        if (inputCodigo) {
+            inputCodigo.addEventListener('input', aplicarMascaraCodigo);
+            // inicializa nível com valor atual do código (edição ou sugestão)
+            atualizarNivel();
+        }
+        if (selectPai) {
+            selectPai.addEventListener('change', aplicarSugestao);
+        }
+
+        if (selectTipo) {
+            selectTipo.addEventListener('change', atualizarCentroContabil);
+            atualizarCentroContabil();
+        }
+
+        // Apenas na criação: aplicar sugestão inicial para raiz
+        {% if not centro %}
+        if (!inputCodigo.value) {
+            aplicarSugestao();
+        }
+        {% endif %}
+    })();
+    </script>
+</div>
+{% endblock %}
+

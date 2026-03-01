@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}FinSaas{% endblock %}</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-100 text-slate-900">
+<div class="min-h-screen flex flex-col">
+    {% if not request.resolver_match or request.resolver_match.url_name != 'login' %}
+    <header class="bg-slate-900 text-white">
+        <div class="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
+            <div class="flex items-center gap-6">
+                <a href="{% url 'dashboard' %}" class="font-semibold tracking-tight hover:text-slate-200">FinSaas</a>
+                {% if user.is_authenticated and not user.is_superuser and not user.is_tenant_admin %}
+                <nav class="hidden sm:flex items-center gap-1">
+                    {% with url_name=request.resolver_match.url_name|default:"" %}
+                    <a href="{% url 'dashboard' %}"
+                       class="px-3 py-2 rounded-md text-sm {% if url_name == 'dashboard' %}bg-slate-700 text-white{% else %}text-slate-300 hover:bg-slate-800 hover:text-white{% endif %}">
+                        Início
+                    </a>
+                    {# Cadastros #}
+                    <div class="relative group">
+                        <button type="button"
+                                class="px-3 py-2 rounded-md text-sm flex items-center gap-1 {% if 'cadastros-' in url_name %}bg-slate-700 text-white{% else %}text-slate-300 hover:bg-slate-800 hover:text-white{% endif %}">
+                            Cadastros
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+                        </button>
+                        <div class="absolute left-0 top-full pt-1 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50">
+                            <div class="bg-slate-800 rounded-md shadow-lg border border-slate-600 py-1 min-w-[200px]">
+                                <a href="{% url 'cadastros-pessoas' %}" class="block px-4 py-2 text-sm text-slate-200 hover:bg-slate-700 hover:text-white">Cliente/Fornecedor</a>
+                                <a href="{% url 'cadastros-centro-resultado' %}" class="block px-4 py-2 text-sm text-slate-200 hover:bg-slate-700 hover:text-white">Centro de Resultado</a>
+                                <a href="{% url 'cadastros-plano-conta' %}" class="block px-4 py-2 text-sm text-slate-200 hover:bg-slate-700 hover:text-white">Plano de Conta</a>
+                                <a href="{% url 'cadastros-tipos-documento' %}" class="block px-4 py-2 text-sm text-slate-200 hover:bg-slate-700 hover:text-white">Tipos de Documento</a>
+                                <a href="{% url 'cadastros-bancos' %}" class="block px-4 py-2 text-sm text-slate-200 hover:bg-slate-700 hover:text-white">Bancos</a>
+                                <a href="{% url 'cadastros-contas-financeiras' %}" class="block px-4 py-2 text-sm text-slate-200 hover:bg-slate-700 hover:text-white">Contas Financeiras</a>
+                            </div>
+                        </div>
+                    </div>
+                    {# Movimentos #}
+                    <div class="relative group">
+                        <button type="button"
+                                class="px-3 py-2 rounded-md text-sm flex items-center gap-1 {% if 'movimentos-' in url_name %}bg-slate-700 text-white{% else %}text-slate-300 hover:bg-slate-800 hover:text-white{% endif %}">
+                            Movimentos
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+                        </button>
+                        <div class="absolute left-0 top-full pt-1 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50">
+                            <div class="bg-slate-800 rounded-md shadow-lg border border-slate-600 py-1 min-w-[200px]">
+                                <a href="{% url 'movimentos-contas-a-pagar' %}" class="block px-4 py-2 text-sm text-slate-200 hover:bg-slate-700 hover:text-white">Contas a Pagar</a>
+                                <a href="{% url 'movimentos-contas-a-pagar-baixa' %}" class="block px-4 py-2 text-sm text-slate-200 hover:bg-slate-700 hover:text-white">Contas a Pagar Baixa</a>
+                                <a href="{% url 'movimentos-contas-a-receber' %}" class="block px-4 py-2 text-sm text-slate-200 hover:bg-slate-700 hover:text-white">Contas a Receber</a>
+                                <a href="{% url 'movimentos-contas-a-receber-baixa' %}" class="block px-4 py-2 text-sm text-slate-200 hover:bg-slate-700 hover:text-white">Conta a Receber Baixa</a>
+                            </div>
+                        </div>
+                    </div>
+                    {# Financeiro #}
+                    <div class="relative group">
+                        <button type="button"
+                                class="px-3 py-2 rounded-md text-sm flex items-center gap-1 {% if 'financeiro-' in url_name %}bg-slate-700 text-white{% else %}text-slate-300 hover:bg-slate-800 hover:text-white{% endif %}">
+                            Financeiro
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+                        </button>
+                        <div class="absolute left-0 top-full pt-1 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50">
+                            <div class="bg-slate-800 rounded-md shadow-lg border border-slate-600 py-1 min-w-[200px]">
+                                <a href="{% url 'financeiro-lancamentos' %}" class="block px-4 py-2 text-sm text-slate-200 hover:bg-slate-700 hover:text-white">Lançamentos</a>
+                                <a href="{% url 'financeiro-transferencias' %}" class="block px-4 py-2 text-sm text-slate-200 hover:bg-slate-700 hover:text-white">Transferências</a>
+                                <a href="{% url 'financeiro-saldo-bancario' %}" class="block px-4 py-2 text-sm text-slate-200 hover:bg-slate-700 hover:text-white">Saldo Bancário</a>
+                            </div>
+                        </div>
+                    </div>
+                    {# Relatórios #}
+                    <div class="relative group">
+                        <button type="button"
+                                class="px-3 py-2 rounded-md text-sm flex items-center gap-1 {% if 'relatorios-' in url_name %}bg-slate-700 text-white{% else %}text-slate-300 hover:bg-slate-800 hover:text-white{% endif %}">
+                            Relatórios
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+                        </button>
+                        <div class="absolute left-0 top-full pt-1 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50">
+                            <div class="bg-slate-800 rounded-md shadow-lg border border-slate-600 py-1 min-w-[200px]">
+                                <a href="{% url 'relatorios-conciliacao-bancaria' %}" class="block px-4 py-2 text-sm text-slate-200 hover:bg-slate-700 hover:text-white">Conciliação Bancária</a>
+                                <a href="{% url 'relatorios-fluxo-caixa' %}" class="block px-4 py-2 text-sm text-slate-200 hover:bg-slate-700 hover:text-white">Fluxo de caixa</a>
+                                <a href="{% url 'relatorios-orcamento' %}" class="block px-4 py-2 text-sm text-slate-200 hover:bg-slate-700 hover:text-white">Orçamento</a>
+                                <a href="{% url 'relatorios-dre' %}" class="block px-4 py-2 text-sm text-slate-200 hover:bg-slate-700 hover:text-white">DRE</a>
+                            </div>
+                        </div>
+                    </div>
+                    {% endwith %}
+                    {% if matrizes %}
+                    <form method="get" action="{% url 'set-empresa-matriz' %}" class="flex items-center gap-2" id="form-empresa-matriz">
+                        <label for="empresa-matriz-select" class="text-sm text-slate-400 whitespace-nowrap">Empresa:</label>
+                        <select id="empresa-matriz-select" name="empresa_id" onchange="this.form.submit()"
+                                class="rounded-md border-slate-600 bg-slate-800 text-white text-sm py-1.5 pl-2 pr-8 focus:ring-sky-500 focus:border-sky-500 max-w-[220px]">
+                            {% for m in matrizes %}
+                                <option value="{{ m.id }}" {% if empresa_matriz and empresa_matriz.id == m.id %}selected{% endif %}>{{ m.razao_social }}</option>
+                            {% endfor %}
+                        </select>
+                    </form>
+                    {% endif %}
+                </nav>
+                {% endif %}
+                {% if user.is_authenticated and not user.is_superuser and user.is_tenant_admin and user.tenant_id %}
+                <a href="{% url 'tenant-admin-home' %}"
+                   class="px-3 py-2 rounded-md text-sm text-slate-300 hover:bg-slate-800 hover:text-white">
+                    Administração da conta
+                </a>
+                {% endif %}
+            </div>
+            <nav class="flex items-center gap-4 text-sm">
+                {% if user.is_authenticated %}
+                    <span class="hidden sm:inline text-slate-300">Olá, {{ user.nome|default:user.email }}</span>
+                    <a href="{% url 'logout' %}"
+                       class="px-3 py-1 rounded-md border border-slate-500 hover:bg-slate-800 transition">
+                        Sair
+                    </a>
+                {% else %}
+                    <a href="{% url 'login' %}" class="px-3 py-1 rounded-md border border-slate-500 hover:bg-slate-800 transition">
+                        Entrar
+                    </a>
+                {% endif %}
+            </nav>
+        </div>
+    </header>
+    {% endif %}
+
+    <main class="flex-1">
+        <div class="max-w-6xl mx-auto px-4 py-6 space-y-4">
+            {% if messages and not modal_lancamento_aberto %}
+                <div class="space-y-2">
+                    {% for message in messages %}
+                        <div class="
+                            text-sm px-3 py-2 rounded-md border
+                            {% if message.tags == 'error' %}
+                                border-rose-200 bg-rose-50 text-rose-800
+                            {% elif message.tags == 'success' %}
+                                border-emerald-200 bg-emerald-50 text-emerald-800
+                            {% else %}
+                                border-slate-200 bg-slate-50 text-slate-700
+                            {% endif %}
+                        ">
+                            {{ message }}
+                        </div>
+                    {% endfor %}
+                </div>
+            {% endif %}
+
+            {% block content %}{% endblock %}
+        </div>
+    </main>
+
+    <footer class="border-t border-slate-200 py-4 text-center text-xs text-slate-500">
+        FinSaas &copy; {% now "Y" %}
+    </footer>
+</div>
+{% block extra_js %}{% endblock %}
+</body>
+</html>
+
