@@ -1,0 +1,97 @@
+{% extends "base.html" %}
+
+{% block title %}Saldo Bancário · Financeiro{% endblock %}
+
+{% block content %}
+<div class="flex flex-col gap-4">
+    <div>
+        <h1 class="text-2xl font-semibold text-slate-800">Saldo Bancário</h1>
+        <p class="text-sm text-slate-500">Consulta do saldo diário por conta financeira (créditos, débitos e saldo acumulado). Use «Reprocessar» (ao lado de Limpar) com os três filtros preenchidos; requer permissão de inclusão.</p>
+    </div>
+
+    <form method="get" action="{% url 'financeiro-saldo-bancario' %}"
+          class="bg-white rounded-xl shadow-sm border border-slate-200 p-4 flex flex-wrap items-end gap-4">
+        <div class="w-40">
+            <label class="block text-xs font-medium text-slate-500 mb-1">Data (de)</label>
+            <input type="date" name="data_de" value="{{ filtros.data_de|default_if_none:'' }}"
+                   class="w-full rounded-md border-slate-300 text-sm shadow-sm focus:border-sky-500 focus:ring-sky-500">
+        </div>
+        <div class="w-40">
+            <label class="block text-xs font-medium text-slate-500 mb-1">Data (até)</label>
+            <input type="date" name="data_ate" value="{{ filtros.data_ate|default_if_none:'' }}"
+                   class="w-full rounded-md border-slate-300 text-sm shadow-sm focus:border-sky-500 focus:ring-sky-500">
+        </div>
+        <div class="w-64">
+            <label class="block text-xs font-medium text-slate-500 mb-1">Conta financeira</label>
+            <select name="conta_financeira_id"
+                    class="w-full rounded-md border-slate-300 text-sm shadow-sm focus:border-sky-500 focus:ring-sky-500">
+                <option value="">Todas</option>
+                {% for cf in contas_financeiras %}
+                    <option value="{{ cf.id }}" {% if selected_conta_financeira_id == cf.id %}selected{% endif %}>
+                        {{ cf.empresa.razao_social }} – {{ cf.banco.nome }} {{ cf.agencia }}/{{ cf.conta }}
+                    </option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="flex justify-end gap-2">
+            <button type="submit"
+                    class="px-4 py-2 rounded-md bg-slate-700 text-white text-sm font-medium hover:bg-slate-800">
+                Filtrar
+            </button>
+            <a href="{% url 'financeiro-saldo-bancario' %}"
+               class="px-4 py-2 rounded-md border border-slate-300 text-slate-700 text-sm hover:bg-slate-50">
+                Limpar
+            </a>
+            <button type="submit" name="reprocessar" value="1"
+                    class="px-4 py-2 rounded-md bg-amber-600 text-white text-sm font-medium hover:bg-amber-700"
+                    title="Reprocessar saldos da conta selecionada no período. Preencha Data (de), Data (até) e Conta financeira. Requer permissão de inclusão.">
+                Reprocessar
+            </button>
+        </div>
+    </form>
+
+    <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+        <h2 class="text-lg font-medium text-slate-800 px-4 py-3 border-b border-slate-100">Saldo diário</h2>
+        <div class="overflow-x-auto">
+            <table class="min-w-full text-sm">
+                <thead class="bg-slate-50 text-slate-600 uppercase text-xs tracking-wide">
+                    <tr>
+                        <th class="px-4 py-2 text-left">Data</th>
+                        <th class="px-4 py-2 text-left">Conta financeira</th>
+                        <th class="px-4 py-2 text-right">Crédito (R$)</th>
+                        <th class="px-4 py-2 text-right">Débito (R$)</th>
+                        <th class="px-4 py-2 text-right">Saldo (R$)</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100">
+                    {% for s in saldos %}
+                        <tr class="hover:bg-slate-50">
+                            <td class="px-4 py-2 text-slate-700">{{ s.data|date:"d/m/Y" }}</td>
+                            <td class="px-4 py-2 text-slate-700">
+                                <span class="font-medium">{{ s.conta_financeira.banco.nome }}</span>
+                                {{ s.conta_financeira.agencia }}/{{ s.conta_financeira.conta }}
+                                <span class="text-slate-500 text-xs">({{ s.conta_financeira.empresa.razao_social }})</span>
+                            </td>
+                            <td class="px-4 py-2 text-right text-slate-700">
+                                R$ {{ s.credito|floatformat:2 }}
+                            </td>
+                            <td class="px-4 py-2 text-right text-slate-700">
+                                R$ {{ s.debito|floatformat:2 }}
+                            </td>
+                            <td class="px-4 py-2 text-right font-medium {% if s.saldo >= 0 %}text-slate-800{% else %}text-rose-600{% endif %}">
+                                R$ {{ s.saldo|floatformat:2 }}
+                            </td>
+                        </tr>
+                    {% empty %}
+                        <tr>
+                            <td colspan="5" class="px-4 py-8 text-center text-slate-400 text-sm">
+                                Nenhum saldo encontrado no período. Verifique os filtros ou recalcule os saldos.
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

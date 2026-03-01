@@ -38,12 +38,34 @@ ALLOWED_HOSTS = (
     [".railway.app", ".up.railway.app"] if RAILWAY else []
 )
 
-# HTTPS/CSRF (Railway) - defina CSRF_TRUSTED_ORIGINS ou RAILWAY_PUBLIC_DOMAIN
-if RAILWAY:
-    _csrf = os.environ.get("CSRF_TRUSTED_ORIGINS", "").strip()
-    CSRF_TRUSTED_ORIGINS = [o.strip() for o in _csrf.split(",") if o.strip()]
-    if os.environ.get("RAILWAY_PUBLIC_DOMAIN") and not CSRF_TRUSTED_ORIGINS:
-        CSRF_TRUSTED_ORIGINS = [f"https://{os.environ.get('RAILWAY_PUBLIC_DOMAIN')}"]
+# CSRF: origens confiáveis para POST (evita 403 "Verificação CSRF falhou")
+def _normalize_origin(s):
+    s = s.strip()
+    if not s:
+        return None
+    if not s.startswith("http://") and not s.startswith("https://"):
+        s = f"https://{s}"
+    return s
+
+_csrf_env = os.environ.get("CSRF_TRUSTED_ORIGINS", "").strip()
+CSRF_TRUSTED_ORIGINS = []
+for o in _csrf_env.split(","):
+    o = _normalize_origin(o)
+    if o and o not in CSRF_TRUSTED_ORIGINS:
+        CSRF_TRUSTED_ORIGINS.append(o)
+
+# Produção: RAILWAY_PUBLIC_DOMAIN pode ter um ou vários domínios (separados por vírgula), com ou sem https://
+_rail_domains = os.environ.get("RAILWAY_PUBLIC_DOMAIN", "").strip()
+if _rail_domains:
+    for d in _rail_domains.split(","):
+        d = _normalize_origin(d)
+        if d and d not in CSRF_TRUSTED_ORIGINS:
+            CSRF_TRUSTED_ORIGINS.append(d)
+
+# Desenvolvimento: localhost
+for origin in ("http://localhost:8000", "http://127.0.0.1:8000", "http://localhost:3000", "http://127.0.0.1:3000"):
+    if origin not in CSRF_TRUSTED_ORIGINS:
+        CSRF_TRUSTED_ORIGINS.append(origin)
 
 
 # Application definition

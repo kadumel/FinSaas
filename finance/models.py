@@ -362,13 +362,28 @@ class Transferencia(BaseModel):
 
 
 class Saldo(BaseModel):
-    conta_financeira = models.OneToOneField(
+    """
+    Saldo diário por conta financeira.
+    Credito = somatório diário: baixas de contas a receber, lançamentos de crédito e entradas de transferência.
+    Debito = somatório diário: baixas de contas a pagar, lançamentos de débito e saídas de transferência.
+    Saldo = saldo acumulado ao final do dia (saldo_inicial + soma dos dias até esta data de credito - debito).
+    """
+    conta_financeira = models.ForeignKey(
         ContaFinanceira,
         on_delete=models.CASCADE,
-        related_name="saldo",
+        related_name="saldos_diarios",
     )
-    saldo_atual = models.DecimalField(max_digits=15, decimal_places=2, default=0)
-    data_atualizacao = models.DateTimeField()
+    data = models.DateField()
+    credito = models.DecimalField(max_digits=15, decimal_places=2, default=0)
+    debito = models.DecimalField(max_digits=15, decimal_places=2, default=0)
+    saldo = models.DecimalField(max_digits=15, decimal_places=2, default=0)
 
     class Meta:
         db_table = "fin_saldo"
+        constraints = [
+            models.UniqueConstraint(
+                fields=["conta_financeira", "data"],
+                name="fin_saldo_conta_data_uniq",
+            ),
+        ]
+        ordering = ["conta_financeira", "data"]

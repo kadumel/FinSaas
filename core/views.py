@@ -1,7 +1,12 @@
+import json
+from decimal import Decimal
+from datetime import date, timedelta, datetime
+
 from django.contrib import messages
 from django.contrib.auth import logout
 from django.contrib.auth.decorators import login_required, user_passes_test
-from django.db.models import Case, IntegerField, Value, When
+from django.db.models import Case, F, IntegerField, Max, Sum, Value, When
+from django.db.models.functions import Coalesce
 from django.shortcuts import redirect, render
 from django.views.decorators.csrf import csrf_exempt
 
@@ -14,7 +19,217 @@ SESSION_EMPRESA_MATRIZ_ID = "empresa_matriz_id"
 
 @login_required
 def dashboard(request):
-    return render(request, "dashboard.html")
+    """Dashboard com indicadores financeiros, filtros e dados para gráficos."""
+    empresa_matriz = get_empresa_matriz(request)
+    empresas = get_empresas_contexto(request)
+
+    if not empresas and not request.user.is_superuser:
+        return render(request, "dashboard.html", {
+            "indicadores": None,
+            "contas_financeiras": [],
+            "filtros": {"data_de": "", "data_ate": "", "conta_financeira_id": ""},
+            "selected_conta_id": None,
+            "chart_saldo_evolucao": "[]",
+            "chart_credito_debito": "[]",
+            "chart_pagar_receber": "{}",
+        })
+
+    if not empresas:
+        empresas = Empresa.objects.none()
+
+    # Filtros: período (padrão mês atual) e opcionalmente conta
+    data_de = (request.GET.get("data_de") or "").strip()
+    data_ate = (request.GET.get("data_ate") or "").strip()
+    conta_id = (request.GET.get("conta_financeira_id") or "").strip()
+
+    hoje = date.today()
+    if not data_de or not data_ate:
+        primeiro = hoje.replace(day=1)
+        if hoje.month == 12:
+            ultimo = date(hoje.year + 1, 1, 1) - timedelta(days=1)
+        else:
+            ultimo = date(hoje.year, hoje.month + 1, 1) - timedelta(days=1)
+        data_de = primeiro.isoformat()
+        data_ate = ultimo.isoformat()
+
+    try:
+        dt_de = datetime.strptime(data_de, "%Y-%m-%d").date()
+        dt_ate = datetime.strptime(data_ate, "%Y-%m-%d").date()
+    except ValueError:
+        dt_de = hoje.replace(day=1)
+        dt_ate = hoje
+        data_de = dt_de.isoformat()
+        data_ate = dt_ate.isoformat()
+
+    contas_financeiras = list(
+        __import__("finance.models", fromlist=["ContaFinanceira"])
+        .ContaFinanceira.objects.filter(empresa__in=empresas)
+        .select_related("banco", "empresa")
+        .order_by("empresa__razao_social", "banco__nome", "agencia", "conta")
+    )
+    if conta_id and conta_id.isdigit():
+        contas_financeiras = [c for c in contas_financeiras if c.pk == int(conta_id)]
+
+    # --- Indicadores ---
+    FinanceModels = __import__("finance.models", fromlist=[
+        "ContaFinanceira", "Saldo", "ContaPagarVenc", "ContaReceberVenc",
+        "ContaPagarBaixa", "ContaReceberBaixa",
+    ])
+    ContaFinanceiraModel = FinanceModels.ContaFinanceira
+    SaldoModel = FinanceModels.Saldo
+    ContaPagarVencModel = FinanceModels.ContaPagarVenc
+    ContaReceberVencModel = FinanceModels.ContaReceberVenc
+    ContaPagarBaixaModel = FinanceModels.ContaPagarBaixa
+    ContaReceberBaixaModel = FinanceModels.ContaReceberBaixa
+
+    conta_ids = [c.id for c in contas_financeiras]
+
+    # Saldo consolidado (ao final do período): para cada conta, último saldo com data <= dt_ate; senão saldo_inicial
+    saldo_consolidado = Decimal("0")
+    for conta in contas_financeiras:
+        ultimo = (
+            SaldoModel.objects.filter(conta_financeira=conta, data__lte=dt_ate)
+            .order_by("-data")
+            .values_list("saldo", flat=True)
+            .first()
+        )
+        if ultimo is not None:
+            saldo_consolidado += ultimo
+        else:
+            saldo_consolidado += conta.saldo_inicial
+
+    # Total a pagar (vencimentos no período, valor pendente)
+    venc_pagar = (
+        ContaPagarVencModel.objects.filter(
+            conta_pagar__empresa__in=empresas,
+            data_vencimento__gte=dt_de,
+            data_vencimento__lte=dt_ate,
+            data_cancelamento__isnull=True,
+        )
+        .select_related("conta_pagar")
+    )
+    total_pagar = Decimal("0")
+    for v in venc_pagar:
+        baixado = (
+            ContaPagarBaixaModel.objects.filter(conta_pagar_venc=v)
+            .aggregate(s=Sum(F("valor_pago") + F("juros") + F("multa")))["s"]
+            or Decimal("0")
+        )
+        total_pagar += (v.valor - baixado)
+
+    # Total a receber (vencimentos no período, valor pendente)
+    venc_receber = (
+        ContaReceberVencModel.objects.filter(
+            conta_receber__empresa__in=empresas,
+            data_vencimento__gte=dt_de,
+            data_vencimento__lte=dt_ate,
+            data_cancelamento__isnull=True,
+        )
+    )
+    total_receber = Decimal("0")
+    for v in venc_receber:
+        baixado = (
+            ContaReceberBaixaModel.objects.filter(conta_receber_venc=v)
+            .aggregate(s=Sum(F("valor_pago") + F("juros") + F("multa")))["s"]
+            or Decimal("0")
+        )
+        total_receber += (v.valor - baixado)
+
+    # Créditos e débitos no período (soma dos Saldo diários no intervalo)
+    totais_periodo = (
+        SaldoModel.objects.filter(
+            conta_financeira_id__in=conta_ids,
+            data__gte=dt_de,
+            data__lte=dt_ate,
+        )
+        .aggregate(
+            credito=Coalesce(Sum("credito"), Decimal("0")),
+            debito=Coalesce(Sum("debito"), Decimal("0")),
+        )
+    )
+    total_creditos = totais_periodo["credito"] or Decimal("0")
+    total_debitos = totais_periodo["debito"] or Decimal("0")
+
+    indicadores = {
+        "saldo_consolidado": saldo_consolidado,
+        "total_a_pagar": total_pagar,
+        "total_a_receber": total_receber,
+        "total_creditos": total_creditos,
+        "total_debitos": total_debitos,
+    }
+
+    # --- Dados para gráficos ---
+    # 1) Evolução do saldo consolidado por dia (soma do saldo de cada conta por data)
+    saldos_por_data = (
+        SaldoModel.objects.filter(
+            conta_financeira_id__in=conta_ids,
+            data__gte=dt_de,
+            data__lte=dt_ate,
+        )
+        .values("data")
+        .annotate(soma_saldo=Sum("saldo"))
+        .order_by("data")
+    )
+    # Por data: uma linha por conta; Sum('saldo') = saldo consolidado do dia
+    chart_saldo_evolucao = [
+        {"data": str(s["data"]), "saldo": float(s["soma_saldo"] or 0)}
+        for s in saldos_por_data
+    ]
+    # Se não houver saldo por dia, preencher com saldo_inicial no primeiro dia
+    if not chart_saldo_evolucao and contas_financeiras:
+        saldo_inicial_total = sum(c.saldo_inicial for c in contas_financeiras)
+        chart_saldo_evolucao = [{"data": data_de, "saldo": float(saldo_inicial_total)}]
+
+    # 2) Crédito e débito por dia (barras)
+    credito_debito_por_data = (
+        SaldoModel.objects.filter(
+            conta_financeira_id__in=conta_ids,
+            data__gte=dt_de,
+            data__lte=dt_ate,
+        )
+        .values("data")
+        .annotate(
+            credito=Coalesce(Sum("credito"), Decimal("0")),
+            debito=Coalesce(Sum("debito"), Decimal("0")),
+        )
+        .order_by("data")
+    )
+    chart_credito_debito = [
+        {
+            "data": str(c["data"]),
+            "credito": float(c["credito"]),
+            "debito": float(c["debito"]),
+        }
+        for c in credito_debito_por_data
+    ]
+
+    # 3) Resumo Pagar vs Receber (para pizza ou barra)
+    chart_pagar_receber = {
+        "a_pagar": float(total_pagar),
+        "a_receber": float(total_receber),
+    }
+
+    # Contas para o select (todas do contexto, não filtradas)
+    contas_para_filtro = list(
+        ContaFinanceiraModel.objects.filter(empresa__in=empresas)
+        .select_related("banco", "empresa")
+        .order_by("empresa__razao_social", "banco__nome", "agencia", "conta")
+    )
+
+    context = {
+        "indicadores": indicadores,
+        "contas_financeiras": contas_para_filtro,
+        "filtros": {
+            "data_de": data_de,
+            "data_ate": data_ate,
+            "conta_financeira_id": conta_id,
+        },
+        "selected_conta_id": int(conta_id) if conta_id and conta_id.isdigit() else None,
+        "chart_saldo_evolucao": json.dumps(chart_saldo_evolucao),
+        "chart_credito_debito": json.dumps(chart_credito_debito),
+        "chart_pagar_receber": json.dumps(chart_pagar_receber),
+    }
+    return render(request, "dashboard.html", context)
 
 
 def _is_superuser(user):
@@ -719,15 +934,19 @@ def tenant_create(request):
         qtd_empresas = request.POST.get("qtd_empresas_contratadas") or "1"
         qtd_usuarios = request.POST.get("qtd_usuarios_contratados") or "1"
         admin_nome = request.POST.get("admin_nome") or ""
-        admin_email = request.POST.get("admin_email") or ""
+        admin_email = (request.POST.get("admin_email") or "").strip()
         admin_password1 = request.POST.get("admin_password1") or ""
         admin_password2 = request.POST.get("admin_password2") or ""
 
         errors = []
         if admin_password1 != admin_password2:
             errors.append("As senhas do administrador do tenant não conferem.")
+        if not admin_password1 or not admin_password2:
+            errors.append("Informe a senha e a confirmação do administrador.")
         if not admin_email:
             errors.append("Informe o e-mail do administrador do tenant.")
+        if admin_email and User.objects.filter(email__iexact=admin_email).exists():
+            errors.append("Este e-mail já está em uso por outro usuário.")
         if not admin_nome:
             errors.append("Informe o nome do administrador do tenant.")
 
@@ -746,29 +965,61 @@ def tenant_create(request):
             }
             return render(request, "sys/tenant_form.html", context)
 
-        tenant = Tenant.objects.create(
-            razao_social=razao_social,
-            nome_fantasia=nome_fantasia,
-            cnpj=cnpj,
-            qtd_empresas_contratadas=int(qtd_empresas or 1),
-            qtd_usuarios_contratados=int(qtd_usuarios or 1),
-            created_by=request.user,
-            updated_by=request.user,
-        )
+        tenant = None
+        try:
+            tenant = Tenant.objects.create(
+                razao_social=razao_social,
+                nome_fantasia=nome_fantasia,
+                cnpj=cnpj,
+                qtd_empresas_contratadas=int(qtd_empresas or 1),
+                qtd_usuarios_contratados=int(qtd_usuarios or 1),
+                created_by=request.user,
+                updated_by=request.user,
+            )
 
-        # cria usuário administrador do tenant (ligação apenas via ADM_USER.tenant)
-        admin_user = User.objects.create_user(
-            email=admin_email,
-            nome=admin_nome,
-            password=admin_password1,
-            tenant=tenant,
-            ativo=True,
-            is_staff=True,
-            is_tenant_admin=True,
-        )
-        admin_user.created_by = request.user
-        admin_user.updated_by = request.user
-        admin_user.save()
+            # cria usuário administrador do tenant (ligação apenas via ADM_USER.tenant)
+            admin_user = User.objects.create_user(
+                email=admin_email,
+                nome=admin_nome,
+                password=admin_password1,
+                tenant=tenant,
+                ativo=True,
+                is_staff=True,
+                is_tenant_admin=True,
+            )
+            admin_user.created_by = request.user
+            admin_user.updated_by = request.user
+            admin_user.save()
+        except Exception as e:
+            from django.db import IntegrityError
+            if tenant is not None:
+                try:
+                    tenant.delete()
+                except Exception:
+                    pass
+            if isinstance(e, IntegrityError):
+                messages.error(
+                    request,
+                    "Não foi possível criar o tenant. E-mail ou CNPJ já pode estar em uso.",
+                )
+            else:
+                messages.error(
+                    request,
+                    f"Erro ao criar tenant: {e}",
+                )
+            context = {
+                "errors": [],
+                "form": {
+                    "razao_social": razao_social,
+                    "nome_fantasia": nome_fantasia,
+                    "cnpj": cnpj,
+                    "qtd_empresas_contratadas": qtd_empresas,
+                    "qtd_usuarios_contratados": qtd_usuarios,
+                    "admin_nome": admin_nome,
+                    "admin_email": admin_email,
+                },
+            }
+            return render(request, "sys/tenant_form.html", context)
 
         return redirect("sys-tenant-list")
 

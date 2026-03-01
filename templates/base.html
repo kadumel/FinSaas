@@ -124,7 +124,7 @@
     {% endif %}
 
     <main class="flex-1">
-        <div class="max-w-6xl mx-auto px-4 py-6 space-y-4">
+        <div class="{% block main_inner_class %}max-w-6xl mx-auto px-4 py-6{% endblock %} space-y-4">
             {% if messages and not modal_lancamento_aberto %}
                 <div class="space-y-2">
                     {% for message in messages %}

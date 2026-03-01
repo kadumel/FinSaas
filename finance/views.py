@@ -24,6 +24,7 @@ from finance.models import (
     Lancamento,
     Pessoa,
     PlanoConta,
+    Saldo,
     Transferencia,
     TipoDocumento,
 )
@@ -5233,7 +5234,142 @@ def financeiro_transferencias_excluir(request, transferencia_id):
 
 @login_required
 def financeiro_saldo_bancario(request):
-    return _placeholder_view(request, "Saldo Bancário")
+    """Gestão de saldo diário por conta financeira (consulta e recálculo)."""
+    empresa_matriz = get_empresa_matriz(request)
+    if not empresa_matriz:
+        messages.warning(request, "Selecione uma empresa no menu para acessar Saldo Bancário.")
+        return redirect("dashboard")
+
+    empresas = get_empresas_contexto(request)
+    if not empresas:
+        messages.warning(request, "Selecione uma empresa no menu para acessar Saldo Bancário.")
+        return redirect("dashboard")
+
+    if not _usuario_tem_permissao_empresa(request, empresa_matriz, "visualizar"):
+        messages.error(request, "Você não tem permissão para visualizar saldos.")
+        return redirect("dashboard")
+
+    contas_financeiras = list(
+        ContaFinanceira.objects.filter(empresa__in=empresas)
+        .select_related("banco", "empresa")
+        .order_by("empresa__razao_social", "banco__nome", "agencia", "conta")
+    )
+
+    # Recalcular saldos (todas as contas do contexto)
+    recalcular = (request.GET.get("recalcular") or "").strip()
+    if recalcular == "1":
+        from finance.saldo_service import recalcular_saldo_conta
+        from urllib.parse import urlencode
+        for conta in contas_financeiras:
+            recalcular_saldo_conta(conta)
+        messages.success(request, "Saldos recalculados para todas as contas do contexto.")
+        # Preservar filtros na volta
+        params = {}
+        if request.GET.get("data_de"):
+            params["data_de"] = request.GET.get("data_de")
+        if request.GET.get("data_ate"):
+            params["data_ate"] = request.GET.get("data_ate")
+        if request.GET.get("conta_financeira_id"):
+            params["conta_financeira_id"] = request.GET.get("conta_financeira_id")
+        url = reverse("financeiro-saldo-bancario")
+        if params:
+            url += "?" + urlencode(params)
+        return redirect(url)
+
+    # Reprocessamento manual: exige os três filtros (data_de, data_ate, conta_financeira_id)
+    from datetime import datetime as _dt
+    from datetime import date as _date
+    from datetime import timedelta as _td
+
+    reprocessar = (request.GET.get("reprocessar") or "").strip()
+    if reprocessar == "1":
+        from finance.saldo_service import recalcular_saldo_conta
+        from urllib.parse import urlencode
+        if not _usuario_tem_permissao_empresa(request, empresa_matriz, "incluir"):
+            messages.error(request, "Você não tem permissão de inclusão para reprocessar saldos.")
+        else:
+            p_data_de = (request.GET.get("data_de") or "").strip()
+            p_data_ate = (request.GET.get("data_ate") or "").strip()
+            p_conta_id = (request.GET.get("conta_financeira_id") or "").strip()
+            if not p_data_de or not p_data_ate or not p_conta_id or not p_conta_id.isdigit():
+                messages.error(
+                    request,
+                    "Para reprocessar, preencha todos os filtros: Data (de), Data (até) e Conta financeira.",
+                )
+            else:
+                try:
+                    data_de_obj = _dt.strptime(p_data_de, "%Y-%m-%d").date()
+                except ValueError:
+                    data_de_obj = None
+                conta = (
+                    ContaFinanceira.objects.filter(pk=int(p_conta_id), empresa__in=empresas)
+                    .select_related("banco", "empresa")
+                    .first()
+                )
+                if not conta:
+                    messages.error(request, "Conta financeira inválida ou fora do contexto.")
+                elif not data_de_obj:
+                    messages.error(request, "Data (de) inválida.")
+                else:
+                    recalcular_saldo_conta(conta, data_a_partir_de=data_de_obj)
+                    messages.success(
+                        request,
+                        f"Saldos reprocessados para a conta {conta.banco.nome} {conta.agencia}/{conta.conta} a partir de {data_de_obj:%d/%m/%Y}.",
+                    )
+                    params = {"data_de": p_data_de, "data_ate": p_data_ate, "conta_financeira_id": p_conta_id}
+                    url = reverse("financeiro-saldo-bancario") + "?" + urlencode(params)
+                    return redirect(url)
+
+    # Filtros GET
+    data_de = (request.GET.get("data_de") or "").strip()
+    data_ate = (request.GET.get("data_ate") or "").strip()
+    conta_financeira_id = (request.GET.get("conta_financeira_id") or "").strip()
+
+    # Período padrão: mês atual
+    if not data_de and not data_ate:
+        hoje = _date.today()
+        primeiro_dia = hoje.replace(day=1)
+        if hoje.month == 12:
+            proximo_mes = _date(hoje.year + 1, 1, 1)
+        else:
+            proximo_mes = _date(hoje.year, hoje.month + 1, 1)
+        ultimo_dia = proximo_mes - _td(days=1)
+        data_de = primeiro_dia.isoformat()
+        data_ate = ultimo_dia.isoformat()
+
+    qs = (
+        Saldo.objects.filter(conta_financeira__empresa__in=empresas)
+        .select_related("conta_financeira", "conta_financeira__banco", "conta_financeira__empresa")
+        .order_by("conta_financeira__empresa__razao_social", "conta_financeira__banco__nome", "data")
+    )
+
+    if data_de:
+        try:
+            qs = qs.filter(data__gte=_dt.strptime(data_de, "%Y-%m-%d").date())
+        except ValueError:
+            pass
+    if data_ate:
+        try:
+            qs = qs.filter(data__lte=_dt.strptime(data_ate, "%Y-%m-%d").date())
+        except ValueError:
+            pass
+    if conta_financeira_id and conta_financeira_id.isdigit():
+        qs = qs.filter(conta_financeira_id=int(conta_financeira_id))
+
+    saldos = list(qs)
+
+    context = {
+        "saldos": saldos,
+        "contas_financeiras": contas_financeiras,
+        "filtros": {
+            "data_de": data_de,
+            "data_ate": data_ate,
+            "conta_financeira_id": conta_financeira_id,
+        },
+        "selected_conta_financeira_id": int(conta_financeira_id) if conta_financeira_id and conta_financeira_id.isdigit() else None,
+        "pode_reprocessar": _usuario_tem_permissao_empresa(request, empresa_matriz, "incluir"),
+    }
+    return render(request, "finance/saldo_list.html", context)
 
 
 # Relatórios
