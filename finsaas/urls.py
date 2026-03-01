@@ -18,6 +18,7 @@ from django.contrib import admin
 from django.urls import include, path
 
 from core.views import (
+    CustomLoginView,
     dashboard,
     logout_view,
     post_login_redirect,
@@ -110,7 +111,8 @@ from finance.views import (
 
 urlpatterns = [
     path("admin/", admin.site.urls),
-    # sobrescreve logout padrão para não exigir CSRF
+    # Login customizado: sempre redireciona para post-login (superadmin -> sys/tenants)
+    path("accounts/login/", CustomLoginView.as_view(), name="login"),
     path("accounts/logout/", logout_view, name="logout"),
     path("accounts/", include("django.contrib.auth.urls")),
     path("accounts/profile/", post_login_redirect, name="post-login"),

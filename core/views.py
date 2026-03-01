@@ -5,9 +5,11 @@ from datetime import date, timedelta, datetime
 from django.contrib import messages
 from django.contrib.auth import logout
 from django.contrib.auth.decorators import login_required, user_passes_test
+from django.contrib.auth.views import LoginView
 from django.db.models import Case, F, IntegerField, Max, Sum, Value, When
 from django.db.models.functions import Coalesce
 from django.shortcuts import redirect, render
+from django.urls import reverse_lazy
 from django.views.decorators.csrf import csrf_exempt
 
 from accounts.models import Perfil, PermissaoEmpresa, User, UserPerfil
@@ -15,6 +17,15 @@ from .context_processors import get_empresa_matriz, get_empresas_contexto
 from .models import Configuracao, Empresa, SisConfig, Tenant
 
 SESSION_EMPRESA_MATRIZ_ID = "empresa_matriz_id"
+
+
+class CustomLoginView(LoginView):
+    """
+    Login que sempre redireciona para post-login (perfil), para que superadmin
+    vá à administração de tenants e não para a URL em ?next= (ex.: dashboard).
+    """
+    def get_success_url(self):
+        return reverse_lazy("post-login")
 
 
 @login_required
